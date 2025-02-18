@@ -1,0 +1,28 @@
+<?php
+
+namespace {{ namespace }};
+
+use App\Commands\Command;
+
+class DummyClass extends Command
+{
+    protected $signature = '{{ command }} {action?}';
+
+    protected $description = 'Command description';
+
+    public function handle()
+    {
+        $action = $this->argument('action');
+
+        return match ($action) {
+            //'key' => $this->key(),
+            default => $this->suggestions(),
+        };
+    }
+
+    protected function suggestions()
+    {
+        //$this->info('');
+        return Command::SUCCESS;
+    }
+}
