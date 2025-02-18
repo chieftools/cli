@@ -16,9 +16,6 @@ class DomainChiefService
      */
     private const VALID_EXPAND_VALUES = ['tld', 'contacts'];
 
-    /**
-     * @throws \Exception
-     */
     public function __construct(string $baseUrl = 'https://domain.chief.app/api/v1')
     {
         $this->baseUrl = rtrim($baseUrl, '/');
@@ -26,10 +23,10 @@ class DomainChiefService
         $this->initializeClient();
     }
 
-    private function initializeClient(): void
+    private function initializeClient()
     {
         if (!$this->configManager->has('api_key')) {
-            throw new \Exception("API key not set. Please use the AuthService 'login' command to set it.");
+            return false;
         }
 
         $this->httpClient = new Client([
