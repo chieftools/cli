@@ -3,6 +3,7 @@
 namespace App\Commands;
 
 use App\Services\AuthService;
+use App\Services\ConfigManager;
 use LaravelZero\Framework\Commands\Command as BaseCommand;
 
 abstract class Command extends BaseCommand
@@ -12,15 +13,15 @@ abstract class Command extends BaseCommand
     public const INVALID = 2;
 
     protected AuthService $auth;
+    protected ConfigManager $config;
 
-    //protected Configuration $configuration;
 
     public function __construct()
     {
         parent::__construct();
 
         $this->auth = new AuthService();
-        //$this->configuration = new Configuration;
+        $this->config = new ConfigManager();
     }
 
 
