@@ -244,4 +244,9 @@ use Illuminate\Support\Arr;
     {
         return !empty($this->teamSlug);
     }
+
+    public function getApiKey(): ?string
+    {
+        return $this->apiKey;
+    }
 }

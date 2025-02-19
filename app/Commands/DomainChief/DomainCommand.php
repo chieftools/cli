@@ -4,9 +4,13 @@ namespace App\Commands\DomainChief;
 
 use App\Commands\Command;
 use App\Services\DomainChiefService;
+use App\Traits\Auth;
+use Carbon\Carbon;
 
 class DomainCommand extends Command
 {
+    use Auth;
+
     private DomainChiefService $domainService;
 
     private const VALID_EXPAND_VALUES = ['tld', 'contacts'];
@@ -42,6 +46,11 @@ class DomainCommand extends Command
      */
     public function handle()
     {
+
+        if ($this->requiresAuth() && !$this->checkAuth()) {
+            return Command::FAILURE;
+        }
+
         $action = $this->argument('action');
 
         switch ($action) {
@@ -154,7 +163,7 @@ class DomainCommand extends Command
                 $domain['domain'] ?? 'N/A',
                 $domain['status'] ?? 'N/A',
                 $domain['is_autorenew_enabled'] ? 'Yes' : 'No',
-                $domain['expires_at'] ?? $domain['renews_at'] ?? 'N/A',
+                Carbon::parse($domain['expires_at'])->format('Y-m-d H:i') ?? Carbon::parse($domain['renews_at'])->format('Y-m-d H:i') ?? 'N/A',
             ];
         }
 

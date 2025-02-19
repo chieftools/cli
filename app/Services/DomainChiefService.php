@@ -3,56 +3,59 @@
 namespace App\Services;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\ConnectException;
 
 class DomainChiefService
 {
-    private ?string $apiKey;
+    private AuthService $auth;
+    private Client $client;
     private string $baseUrl;
-    private Client $httpClient;
-    private ConfigManager $configManager;
 
     /**
      * Valid expand options for the API
      */
     private const VALID_EXPAND_VALUES = ['tld', 'contacts'];
 
-    public function __construct(string $baseUrl = 'https://domain.chief.app/api/v1')
+    public function __construct(AuthService $auth)
     {
-        $this->baseUrl = rtrim($baseUrl, '/');
-        $this->configManager = new ConfigManager();
+        $this->auth = $auth;
+        $this->baseUrl = config('chief.domain_endpoint', 'https://domain.chief.app');
         $this->initializeClient();
     }
 
-    private function initializeClient()
+    private function initializeClient(): void
     {
-        if (!$this->configManager->has('api_key')) {
-            return false;
-        }
-
-        $this->httpClient = new Client([
-            'base_uri' => $this->baseUrl . '/',
-            'headers' => [
-                'Authorization' => 'Bearer ' . $this->configManager->get('api_key'),
-                'Accept' => 'application/json',
-            ]
+        $this->client = new Client([
+            'base_uri' => rtrim($this->baseUrl, '/') . '/api/v1/',
+            'timeout' => 30,
+            'headers' => $this->getHeaders(),
         ]);
     }
 
-    /**
-     * List all domains for the authenticated team
-     *
-     * @param array $options Array of query parameters
-     *                      - expand: array of strings (allowed: 'tld', 'contacts')
-     *                      - page: int >= 1
-     *                      - per_page: int (1-100)
-     *                      - query: string (domain filter)
-     * @return array
-     * @throws \Exception
-     */
+    private function getHeaders(): array
+    {
+        $headers = [
+            'Accept' => 'application/json',
+            'Content-Type' => 'application/json',
+        ];
+
+        if ($this->auth->hasApiKey()) {
+            $headers['Authorization'] = 'Bearer ' . $this->auth->getApiKey();
+        }
+
+        if ($this->auth->getTeam()) {
+            $headers['X-Chief-Team'] = $this->auth->getTeam();
+        }
+
+        return $headers;
+    }
+
     public function listDomains(array $options = []): array
     {
-        if (!$this->configManager->has('api_key')) {
-            throw new \Exception("API key not set. Please use the AuthService 'login' command to set it.");
+        if (!$this->auth->hasApiKey()) {
+            throw new \Exception("API key not set. Please use the auth login command to set it.");
         }
 
         $queryParams = [];
@@ -63,7 +66,6 @@ class DomainChiefService
                 throw new \Exception('Expand parameter must be an array');
             }
 
-            // Validate expand values
             $invalidValues = array_diff($options['expand'], self::VALID_EXPAND_VALUES);
             if (!empty($invalidValues)) {
                 throw new \Exception(sprintf(
@@ -73,9 +75,8 @@ class DomainChiefService
                 ));
             }
 
-            // Add expand values as separate array items
             if (!empty($options['expand'])) {
-                $queryParams['expand'] = $options['expand'];
+                $queryParams['expand'] = implode(',', $options['expand']);
             }
         }
 
@@ -103,12 +104,37 @@ class DomainChiefService
         }
 
         try {
-            $response = $this->httpClient->get('domains', [
+            $response = $this->client->get('domains', [
                 'query' => $queryParams
             ]);
 
-            return json_decode($response->getBody()->getContents(), true);
-        } catch (\GuzzleHttp\Exception\GuzzleException $e) {
+            $result = json_decode($response->getBody()->getContents(), true);
+
+            return $result;
+        } catch (ClientException $e) {
+            // Handle HTTP errors (4xx, 5xx) that have responses
+            if ($e->getResponse()->getStatusCode() === 401) {
+                if ($this->auth->refreshAccessToken()) {
+                    // Reinitialize client with new token and retry
+                    $this->initializeClient();
+                    return $this->listDomains($options);
+                }
+            }
+
+            throw new \Exception(
+                'Failed to list domains: ' . $e->getMessage(),
+                $e->getCode(),
+                $e
+            );
+        } catch (ConnectException $e) {
+            // Handle connection errors (DNS, refused, timeout, etc.)
+            throw new \Exception(
+                'Failed to connect to the domain service. Please check your internet connection and try again.',
+                $e->getCode(),
+                $e
+            );
+        } catch (GuzzleException $e) {
+            // Handle any other Guzzle errors
             throw new \Exception(
                 'Failed to list domains: ' . $e->getMessage(),
                 $e->getCode(),

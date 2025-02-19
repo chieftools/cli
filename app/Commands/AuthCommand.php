@@ -2,12 +2,8 @@
 
 namespace App\Commands;
 
-use App\Commands\Command;
 use Exception;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Collection;
-use function Laravel\Prompts\text;
-use function Laravel\Prompts\select;
 use function Laravel\Prompts\spin;
 
 class AuthCommand extends Command

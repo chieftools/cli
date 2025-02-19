@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\AuthService;
+use App\Services\DomainChiefService;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -20,6 +22,13 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->loadConfigurationFile();
+
+        $this->app->singleton(DomainChiefService::class, function ($app) {
+            return new DomainChiefService(
+                $app->make(AuthService::class),
+                config('chief.api_version', 'v1')
+            );
+        });
     }
 
     protected function loadConfigurationFile(): void

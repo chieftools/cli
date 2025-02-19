@@ -2,5 +2,5 @@
 
 return [
     'auth_endpoint' => 'https://account.chief.app/api',
-    'domain_endpoint' => 'https://domain.chief.app/api/v1',
+    'domain_endpoint' => 'https://domain.chief.app',
 ];
