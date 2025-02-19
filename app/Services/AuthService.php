@@ -147,32 +147,53 @@ use Illuminate\Support\Arr;
 
         try {
             $config = $this->makeRequest('GET', self::AUTH_CONFIG_URL);
+
+            // Validate token endpoint exists
+            if (empty($config['token_endpoint'])) {
+                throw new \Exception('Invalid auth configuration');
+            }
+
             $response = $this->makeRequest('POST', $config['token_endpoint'], [
                 'json' => [
                     'client_id' => self::CLIENT_ID,
                     'refresh_token' => $refreshToken,
                     'grant_type' => 'refresh_token',
+                    'scope' => self::REQUIRED_SCOPES,
                 ]
             ]);
 
-            if (isset($response['access_token'])) {
-                $this->configManager->updateAuthData(
-                    $response['access_token'],
-                    $response['refresh_token'] ?? $refreshToken,
-                    Arr::first($response['teams'])['slug']
-                );
-                $this->apiKey = $response['access_token'];
-                $this->teamSlug = Arr::first($response['teams'])['slug'];
-                $this->initializeClient();
-                return true;
+            // Validate response contains required fields
+            if (!isset($response['access_token'])) {
+                throw new \Exception('Invalid token response');
             }
+
+            // Get user info to ensure we have valid team data
+            $userInfo = $this->makeRequest('GET', $config['userinfo_endpoint'], [
+                'headers' => ['Authorization' => 'Bearer ' . $response['access_token']]
+            ]);
+
+            if (empty($userInfo['teams'])) {
+                throw new \Exception('No teams available in user info');
+            }
+
+            // Update with new tokens and team data
+            $this->configManager->updateAuthData(
+                $response['access_token'],
+                $response['refresh_token'] ?? $refreshToken,
+                Arr::first($userInfo['teams'])['slug']
+            );
+
+            $this->apiKey = $response['access_token'];
+            $this->teamSlug = Arr::first($userInfo['teams'])['slug'];
+            $this->initializeClient();
+
+            return true;
         } catch (\Exception $e) {
-            // Silent fail on refresh attempt
+            // Log the error instead of silent fail
+            error_log('Refresh token error: ' . $e->getMessage());
+            return false;
         }
-
-        return false;
     }
-
     public function clearApiKey(): void
     {
         $this->configManager->remove('api_key');
@@ -190,14 +211,16 @@ use Illuminate\Support\Arr;
         try {
             $normalizedEndpoint = '/api' . ($endpoint[0] === '/' ? $endpoint : '/' . $endpoint);
             $response = $this->client->request($method, $normalizedEndpoint, ['json' => $data]);
-            $result = json_decode($response->getBody(), true);
-
-            if ($response->getStatusCode() === 401 && $this->refreshAccessToken()) {
-                return $this->request($method, $endpoint, $data);
-            }
-
-            return $result;
+            return json_decode($response->getBody(), true);
         } catch (GuzzleException $e) {
+            // Check specifically for 401 status
+            if ($e->getResponse() && $e->getResponse()->getStatusCode() === 401) {
+                // Try to refresh the token
+                if ($this->refreshAccessToken()) {
+                    // Retry the original request with new token
+                    return $this->request($method, $endpoint, $data);
+                }
+            }
             throw new \Exception("API request failed: " . $e->getMessage());
         }
     }
