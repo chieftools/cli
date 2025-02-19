@@ -163,7 +163,7 @@ class DomainCommand extends Command
                 $domain['domain'] ?? 'N/A',
                 $domain['status'] ?? 'N/A',
                 $domain['is_autorenew_enabled'] ? 'Yes' : 'No',
-                Carbon::parse($domain['expires_at'])->format('Y-m-d H:i') ?? Carbon::parse($domain['renews_at'])->format('Y-m-d H:i') ?? 'N/A',
+                $this->formatDate($domain['expires_at'] ?? $domain['renews_at'] ?? null)
             ];
         }
 
@@ -171,6 +171,16 @@ class DomainCommand extends Command
         $this->displayPaginationInfo($response['meta'] ?? []);
 
         return Command::SUCCESS;
+    }
+
+    private function formatDate(?string $dateString): string
+    {
+        if (empty($dateString)) {
+            return 'N/A';
+        }
+
+        return Carbon::parse($dateString)->format('Y-m-d H:i');
+
     }
 
     /**
