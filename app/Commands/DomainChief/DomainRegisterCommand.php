@@ -18,7 +18,7 @@ class DomainRegisterCommand extends Command
 
     private DomainChiefService $domainService;
 
-    protected $signature = 'domain:register {domain?}';
+    protected $signature = 'domain:register {domain? : Domain name to register or transfer}';
     protected $description = 'Register a new domain name';
 
     public function __construct(DomainChiefService $domainService)
@@ -35,7 +35,7 @@ class DomainRegisterCommand extends Command
                 // Step 1: Get domain name
                 ->text(
                     label:'Enter the domain name to register or transfer',
-                    default: $this->argument('domain') ?? null,
+                    default: $this->argument('domain') ?? "",
                     required: true,
                     validate: fn ($value) => $this->validateDomain($value),
                     name: 'domain'
