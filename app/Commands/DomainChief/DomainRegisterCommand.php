@@ -9,6 +9,9 @@ use function Laravel\Prompts\text;
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\search;
 use function Laravel\Prompts\spin;
+use function Laravel\Prompts\outro;
+use function Laravel\Prompts\form;
+use function Laravel\Prompts\pause;
 
 class DomainRegisterCommand extends Command
 {
@@ -27,106 +30,231 @@ class DomainRegisterCommand extends Command
     public function handle()
     {
         try {
-            $domain = $this->argument('domain') ??
-                text(
-                    label: 'Enter the domain name to register or transfer',
+
+            $responses = form()
+                // Step 1: Get domain name
+                ->text(
+                    label:'Enter the domain name to register or transfer',
+                    default: $this->argument('domain') ?? null,
                     required: true,
-                    validate: fn ($value) => $this->validateDomain($value)
-                );
+                    validate: fn ($value) => $this->validateDomain($value),
+                    name: 'domain'
+                )
+                // Step 2: Check domain availability and load TLD info
+                ->add(function ($responses) {
+                    $domain = $responses['domain'];
+                    $tld = pathinfo($domain, PATHINFO_EXTENSION);
+                    $tldInfo = $this->domainService->getTldInfo($tld);
 
-            $isAvailable = spin(
-                callback: fn () => $this->domainService->checkDomainAvailability($domain) == 'free',
-                message: 'Checking domain availability...'
-            );
+                    $availabilityCheck = spin(
+                        callback: fn () => $this->domainService->checkDomainAvailability($domain),
+                        message: 'Checking domain availability...'
+                    );
 
-            $isTransfer = false;
-            if (!$isAvailable) {
-                if (!confirm(
-                    label: "This domain is already registered. Would you like to transfer it?",
-                )) {
-                    $this->info('Operation cancelled.');
-                    return 0;
-                }
-                $isTransfer = true;
-            } else {
-                $this->info("Domain {$domain} is available for registration!");
+                    $isAvailable = $availabilityCheck['availability'] === 'free';
+                    $registrationPrice = number_format($tldInfo['registration_price'] / 100, 2) ?? 'Unknown';
+                    $transferPrice = number_format($tldInfo['transfer_price'] / 100, 2) ?? 'Unknown';
+                    $renewalPrice = number_format($tldInfo['renewal_price'] / 100, 2) ?? 'Unknown';
+
+                    $supportsWhoisPrivacy = $tldInfo['supports_whois_privacy'] ?? false;
+                    $supportsDnssec = $tldInfo['supports_dnssec'] ?? false;
+
+                    return [
+                        'tld' => $tld,
+                        'tldInfo' => $tldInfo,
+                        'isAvailable' => $isAvailable,
+                        'registrationPrice' => $registrationPrice,
+                        'transferPrice' => $transferPrice,
+                        'renewalPrice' => $renewalPrice,
+                        'supportsWhoisPrivacy' => $supportsWhoisPrivacy,
+                        'supportsDnssec' => $supportsDnssec,
+                    ];
+                }, name: 'domain_info')
+                // Step 3: Handle registration vs transfer path
+                ->add(function ($responses) {
+                    $domain = $responses['domain'];
+                    $isAvailable = $responses['domain_info']['isAvailable'];
+                    $transferPrice = $responses['domain_info']['transferPrice'];
+                    $registrationPrice = $responses['domain_info']['registrationPrice'];
+                    $renewalPrice = $responses['domain_info']['renewalPrice'];
+
+                    if (!$isAvailable) {
+                        $this->warn("Domain {$domain} is already registered.");
+                        return pause("Press ENTER to transfer ...(Transfer price: €{$transferPrice})");
+                    } else {
+                        $this->info("Domain {$domain} is available for registration!");
+                        $this->info("Registration price: €{$registrationPrice}");
+                        $this->info("Renewal price: €{$renewalPrice}");
+                        return true; // Proceed with registration
+                    }
+                }, name: 'proceed')
+                // Step 4: Get auth code for transfer
+                ->add(function ($responses) {
+                    $isAvailable = $responses['domain_info']['isAvailable'];
+
+                    if (!$isAvailable && $responses['proceed']) {
+                        return text(
+                            'Enter the authorization code for the domain transfer',
+                            required: true
+                        );
+                    }
+
+                    return null; // Skip this step for registration
+                }, name: 'auth_code')
+                // Step 5: DNS configuration
+                ->add(function ($responses) {
+                    if (!$responses['proceed']) {
+                        return null; // User cancelled
+                    }
+
+                    return select(
+                        'Select DNS configuration',
+                        [
+                            'hosted' => 'Use Hosted DNS',
+                            'custom' => 'Use Custom Nameservers'
+                        ]
+                    );
+                }, name: 'dns_choice')
+                // Step 6: Custom nameservers if selected
+                ->add(function ($responses) {
+                    if (!$responses['proceed'] || $responses['dns_choice'] !== 'custom') {
+                        return null; // Skip if not using custom nameservers
+                    }
+
+                    return $this->collectNameservers();
+                }, name: 'nameservers')
+                // Step 7: WHOIS Privacy
+                ->add(function ($responses) {
+                    if (!$responses['proceed']) {
+                        return null; // User cancelled
+                    }
+
+                    $supportsWhoisPrivacy = $responses['domain_info']['supportsWhoisPrivacy'];
+
+                    if ($supportsWhoisPrivacy) {
+                        return confirm(
+                            'Enable WHOIS Privacy?',
+                            default: false
+                        );
+                    }
+
+                    return false;
+                }, name: 'use_whois_privacy')
+                // Step 8: Contacts
+                ->add(function ($responses) {
+                    if (!$responses['proceed']) {
+                        return null; // User cancelled
+                    }
+
+                    $useWhoisPrivacy = $responses['use_whois_privacy'];
+                    $supportsWhoisPrivacy = $responses['domain_info']['supportsWhoisPrivacy'];
+
+                    if ((!$supportsWhoisPrivacy || !$useWhoisPrivacy) &&
+                        confirm('Would you like to specify contacts' . (!$supportsWhoisPrivacy ? ' (other than default)' : '') . '?', default: false)) {
+                        return $this->collectContacts();
+                    }
+
+                    return null;
+                }, name: 'contacts')
+                // Step 9: DNSSEC
+                ->add(function ($responses) {
+                    if (!$responses['proceed']) {
+                        return null; // User cancelled
+                    }
+
+                    $supportsDnssec = $responses['domain_info']['supportsDnssec'];
+                    $tld = $responses['domain_info']['tld'];
+
+                    if ($supportsDnssec) {
+                        if (confirm('Would you like to configure DNSSEC?', default: false)) {
+                            return $this->collectDnssecKeys();
+                        }
+                    } else {
+                        $this->warn("DNSSEC is not supported for .{$tld} domains.");
+                    }
+
+                    return null;
+                }, name: 'dnssec_keys')
+                // Step 10: Final confirmation
+                ->add(function ($responses) {
+                    if (!$responses['proceed']) {
+                        return null; // User cancelled
+                    }
+
+                    $domain = $responses['domain'];
+                    $isAvailable = $responses['domain_info']['isAvailable'];
+                    $registrationPrice = $responses['domain_info']['registrationPrice'];
+                    $transferPrice = $responses['domain_info']['transferPrice'];
+
+                    $action = !$isAvailable ? 'transfer' : 'register';
+                    $actionPrice = !$isAvailable ? $transferPrice : $registrationPrice;
+
+                    return confirm(
+                        "Ready to {$action} {$domain} for €{$actionPrice}. Proceed?",
+                        default: false
+                    );
+                }, name: 'final_confirmation')
+                ->submit();
+
+            // Early exit if user canceled
+            if (!$responses['proceed']) {
+                outro('Operation cancelled.');
+                return 0;
             }
 
-            $params = ['domain' => $domain];
-
-            if ($isTransfer) {
-                $params['auth_code'] = text(
-                    label: 'Enter the authorization code for the domain transfer',
-                    required: true
-                );
-            }
-
-            // Determine DNS configuration
-            $dnsChoice = select(
-                label: 'Select DNS configuration',
-                options: [
-                    'hosted' => 'Use Hosted DNS',
-                    'custom' => 'Use Custom Nameservers'
-                ]
-            );
-
-            $params['is_using_hosted_dns'] = $dnsChoice === 'hosted';
-
-            // If using custom nameservers, collect them
-            if ($dnsChoice === 'custom') {
-                $params['nameservers'] = $this->collectNameservers();
-            }
-
-            // WHOIS Privacy
-            $useWhoisPrivacy = confirm(
-                label: 'Enable WHOIS Privacy?',
-                default: true
-            );
-
-            if ($useWhoisPrivacy) {
-                $params['is_whois_privacy_enabled'] = true;
-            } else {
-                // If WHOIS privacy is disabled, ask about contacts
-                $useCustomContacts = confirm(
-                    label: 'Would you like to specify contacts?',
-                    default: false
-                );
-
-                if ($useCustomContacts) {
-                    $params['contacts'] = $this->collectContacts();
-                }
-            }
-
-            // DNSSEC
-            $useDnssec = confirm(
-                label: 'Would you like to configure DNSSEC?',
-                default: false
-            );
-
-            if ($useDnssec) {
-                $params['dnssec_keys'] = $this->collectDnssecKeys();
-            }
-
-            // Confirm operation
-            $action = $isTransfer ? 'transfer' : 'register';
-            if (!confirm(
-                label: "Ready to {$action} {$domain}. Proceed?",
-                default: true
-            )) {
-                $this->error("Domain {$action} cancelled.");
+            // Early exit if user didn't confirm the final action
+            if (!$responses['final_confirmation']) {
+                $domain = $responses['domain'];
+                $isAvailable = $responses['domain_info']['isAvailable'];
+                $action = !$isAvailable ? 'transfer' : 'register';
+                outro("Domain {$action} cancelled.");
                 return 1;
             }
 
-            // Register or transfer the domain
-            $result = $isTransfer
-                ? $this->domainService->transferDomain($params)
-                : $this->domainService->registerDomain($params);
+            // Prepare parameters for domain registration/transfer
+            $params = [
+                'domain' => $responses['domain']
+            ];
 
-            $this->info("Successfully {$action}ed domain: {$domain}");
-            $this->table(
-                ['Property', 'Value'],
-                $this->formatResultForDisplay($result)
-            );
+            // Set auth code for transfer
+            if (!$responses['domain_info']['isAvailable'] && $responses['auth_code']) {
+                $params['auth_code'] = $responses['auth_code'];
+            }
+
+            // Set DNS configuration based on choice
+            if ($responses['dns_choice'] === 'hosted') {
+                // Use hosted DNS
+                $params['is_using_hosted_dns'] = true;
+            } elseif ($responses['dns_choice'] === 'custom' && $responses['nameservers']) {
+                // Use custom nameservers - don't pass is_using_hosted_dns to false
+                $params['nameservers'] = $responses['nameservers'];
+            }
+
+            // Set WHOIS privacy if enabled
+            if ($responses['domain_info']['supportsWhoisPrivacy'] && $responses['use_whois_privacy']) {
+                $params['is_whois_privacy_enabled'] = true;
+            }
+
+            // Set contacts if provided
+            if ($responses['contacts']) {
+                $params['contacts'] = $responses['contacts'];
+            }
+
+            // Set DNSSEC keys if provided
+            if ($responses['dnssec_keys']) {
+                $params['dnssec_keys'] = $responses['dnssec_keys'];
+            }
+
+            // Register or transfer the domain
+            $domain = $responses['domain'];
+            $isAvailable = $responses['domain_info']['isAvailable'];
+            $action = !$isAvailable ? 'transfer' : 'register';
+
+            ray($params);
+
+            $this->domainService->registerOrTransferDomain($params);
+
+            $this->success("Successfully {$action}ed domain: {$domain}");
 
             return 0;
         } catch (\Exception $e) {
@@ -179,7 +307,7 @@ class DomainRegisterCommand extends Command
 
                 $selectedContact = search(
                     label: "Search and select {$type} contact",
-                    options: $contactOptions,
+                    options: fn () => $contactOptions,
                     placeholder: 'Start typing to search contacts...'
                 );
 

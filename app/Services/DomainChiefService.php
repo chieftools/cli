@@ -188,7 +188,7 @@ class DomainChiefService
         });
     }
 
-    public function registerDomain(array $params): array
+    public function registerOrTransferDomain(array $params): array
     {
         // Validate required parameters
         if (!isset($params['domain'])) {
@@ -224,7 +224,7 @@ class DomainChiefService
         return $this->executeRequest('post', 'domains', [
             'json' => $params
         ], function() use ($params) {
-            return $this->registerDomain($params);
+            return $this->registerOrTransferDomain($params);
         });
     }
 
@@ -282,6 +282,17 @@ class DomainChiefService
 
         if (!isset($result['data'])) {
             throw new \Exception('Invalid response format from availability endpoint');
+        }
+
+        return $result['data'];
+    }
+
+    public function getTldInfo($tld): array
+    {
+        $result = $this->executeRequest('get', sprintf('tlds/%s', $tld));
+
+        if (!isset($result['data']) || !is_array($result['data'])) {
+            throw new \Exception('Invalid response format from contacts endpoint');
         }
 
         return $result['data'];

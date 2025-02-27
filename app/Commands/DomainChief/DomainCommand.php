@@ -60,7 +60,9 @@ class DomainCommand extends Command
                 return $this->listDomains();
 
             case 'register':
-                return $this->call(DomainRegisterCommand::class);
+                return $this->call(DomainRegisterCommand::class,
+                    ['domain' => $this->argument('domain')]
+                );
 
             case 'availability':
                 return $this->call(DomainAvailabilityCommand::class, [
