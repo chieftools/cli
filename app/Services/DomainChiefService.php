@@ -13,9 +13,6 @@ class DomainChiefService
     private Client $client;
     private string $baseUrl;
 
-    /**
-     * Valid expand options for the API
-     */
     private const VALID_EXPAND_VALUES = ['tld', 'contacts'];
 
     public function __construct(AuthService $auth)
@@ -52,35 +49,74 @@ class DomainChiefService
         return $headers;
     }
 
-    public function listDomains(array $options = []): array
+    /**
+     * Validate API key availability
+     *
+     * @throws \Exception
+     */
+    private function validateApiKey(): void
     {
         if (!$this->auth->hasApiKey()) {
             throw new \Exception("API key not set. Please use the auth login command to set it.");
         }
+    }
 
+    /**
+     * Execute API request with automatic token refresh on 401
+     *
+     * @param string $method HTTP method
+     * @param string $endpoint API endpoint
+     * @param array $options Request options
+     * @param callable $retryCallback Function to call for retry
+     * @return array
+     * @throws \Exception
+     */
+    private function executeRequest(string $method, string $endpoint, array $options = [], callable $retryCallback = null): array
+    {
+        $this->validateApiKey();
+
+        try {
+            $response = $this->client->$method($endpoint, $options);
+            return json_decode($response->getBody()->getContents(), true);
+        } catch (ClientException $e) {
+            if ($e->getResponse()->getStatusCode() === 401 && $this->auth->refreshAccessToken()) {
+                $this->initializeClient();
+                if ($retryCallback) {
+                    return $retryCallback();
+                }
+            }
+
+            throw new \Exception(
+                "Failed to {$method} {$endpoint}: " . $e->getMessage(),
+                $e->getCode(),
+                $e
+            );
+        } catch (ConnectException $e) {
+            throw new \Exception(
+                'Failed to connect to the domain service. Please check your internet connection and try again.',
+                $e->getCode(),
+                $e
+            );
+        } catch (GuzzleException $e) {
+            throw new \Exception(
+                "Failed to {$method} {$endpoint}: " . $e->getMessage(),
+                $e->getCode(),
+                $e
+            );
+        }
+    }
+
+    /**
+     * Process pagination parameters
+     *
+     * @param array $options Input options
+     * @return array Processed query parameters
+     * @throws \Exception
+     */
+    private function processPaginationParams(array $options): array
+    {
         $queryParams = [];
 
-        // Handle expand parameter
-        if (isset($options['expand'])) {
-            if (!is_array($options['expand'])) {
-                throw new \Exception('Expand parameter must be an array');
-            }
-
-            $invalidValues = array_diff($options['expand'], self::VALID_EXPAND_VALUES);
-            if (!empty($invalidValues)) {
-                throw new \Exception(sprintf(
-                    'Invalid expand values: %s. Allowed values are: %s',
-                    implode(', ', $invalidValues),
-                    implode(', ', self::VALID_EXPAND_VALUES)
-                ));
-            }
-
-            if (!empty($options['expand'])) {
-                $queryParams['expand'] = implode(',', $options['expand']);
-            }
-        }
-
-        // Handle pagination
         if (isset($options['page'])) {
             if (!is_int($options['page']) || $options['page'] < 1) {
                 throw new \Exception('Page must be an integer >= 1');
@@ -95,6 +131,48 @@ class DomainChiefService
             $queryParams['per_page'] = $options['per_page'];
         }
 
+        return $queryParams;
+    }
+
+    /**
+     * Process expand parameters
+     *
+     * @param array $options Input options
+     * @return string|null Processed expand parameter
+     * @throws \Exception
+     */
+    private function processExpandParam(array $options): ?string
+    {
+        if (!isset($options['expand'])) {
+            return null;
+        }
+
+        if (!is_array($options['expand'])) {
+            throw new \Exception('Expand parameter must be an array');
+        }
+
+        $invalidValues = array_diff($options['expand'], self::VALID_EXPAND_VALUES);
+        if (!empty($invalidValues)) {
+            throw new \Exception(sprintf(
+                'Invalid expand values: %s. Allowed values are: %s',
+                implode(', ', $invalidValues),
+                implode(', ', self::VALID_EXPAND_VALUES)
+            ));
+        }
+
+        return !empty($options['expand']) ? implode(',', $options['expand']) : null;
+    }
+
+    public function listDomains(array $options = []): array
+    {
+        $queryParams = $this->processPaginationParams($options);
+
+        // Handle expand parameter
+        $expand = $this->processExpandParam($options);
+        if ($expand) {
+            $queryParams['expand'] = $expand;
+        }
+
         // Handle query parameter
         if (isset($options['query'])) {
             if (!is_string($options['query']) || strlen($options['query']) < 1) {
@@ -103,43 +181,109 @@ class DomainChiefService
             $queryParams['query'] = $options['query'];
         }
 
-        try {
-            $response = $this->client->get('domains', [
-                'query' => $queryParams
-            ]);
+        return $this->executeRequest('get', 'domains', [
+            'query' => $queryParams
+        ], function() use ($options) {
+            return $this->listDomains($options);
+        });
+    }
 
-            $result = json_decode($response->getBody()->getContents(), true);
+    public function registerDomain(array $params): array
+    {
+        // Validate required parameters
+        if (!isset($params['domain'])) {
+            throw new \Exception('Domain name is required');
+        }
 
-            return $result;
-        } catch (ClientException $e) {
-            // Handle HTTP errors (4xx, 5xx) that have responses
-            if ($e->getResponse()->getStatusCode() === 401) {
-                if ($this->auth->refreshAccessToken()) {
-                    // Reinitialize client with new token and retry
-                    $this->initializeClient();
-                    return $this->listDomains($options);
-                }
+        // Validate domain name length
+        if (strlen($params['domain']) < 3 || strlen($params['domain']) > 63) {
+            throw new \Exception('Domain name must be between 3 and 63 characters');
+        }
+
+        // Validate nameservers and hosted DNS conflicts
+        if (isset($params['is_using_hosted_dns']) && isset($params['nameservers'])) {
+            throw new \Exception('Cannot provide nameservers when using hosted DNS');
+        }
+
+        if (!isset($params['is_using_hosted_dns']) && isset($params['nameservers'])) {
+            if (count($params['nameservers']) < 2) {
+                throw new \Exception('At least two nameservers are required when not using hosted DNS');
+            }
+        }
+
+        // Validate WHOIS privacy and contacts conflict
+        if (isset($params['is_whois_privacy_enabled']) && isset($params['contacts'])) {
+            throw new \Exception('Cannot provide contacts when WHOIS privacy is enabled');
+        }
+
+        // Validate DNSSEC keys if provided
+        if (isset($params['dnssec_keys'])) {
+            $this->validateDnssecKeys($params['dnssec_keys']);
+        }
+
+        return $this->executeRequest('post', 'domains', [
+            'json' => $params
+        ], function() use ($params) {
+            return $this->registerDomain($params);
+        });
+    }
+
+    /**
+     * Validate DNSSEC keys
+     *
+     * @param array $keys DNSSEC keys
+     * @throws \Exception
+     */
+    private function validateDnssecKeys(array $keys): void
+    {
+        foreach ($keys as $key) {
+            if (!isset($key['public_key'])) {
+                throw new \Exception('Public key is required for DNSSEC keys');
             }
 
-            throw new \Exception(
-                'Failed to list domains: ' . $e->getMessage(),
-                $e->getCode(),
-                $e
-            );
-        } catch (ConnectException $e) {
-            // Handle connection errors (DNS, refused, timeout, etc.)
-            throw new \Exception(
-                'Failed to connect to the domain service. Please check your internet connection and try again.',
-                $e->getCode(),
-                $e
-            );
-        } catch (GuzzleException $e) {
-            // Handle any other Guzzle errors
-            throw new \Exception(
-                'Failed to list domains: ' . $e->getMessage(),
-                $e->getCode(),
-                $e
-            );
+            if (isset($key['algorithm']) && !in_array($key['algorithm'], [1, 2, 3, 5, 6, 7, 8, 10, 12, 13, 14, 15, 16, 17, 23])) {
+                throw new \Exception('Invalid DNSSEC algorithm');
+            }
+
+            if (isset($key['flags']) && !in_array($key['flags'], [256, 257])) {
+                throw new \Exception('Invalid DNSSEC flags. Must be 256 (ZSK) or 257 (KSK)');
+            }
+
+            if (isset($key['protocol']) && $key['protocol'] !== 3) {
+                throw new \Exception('Invalid DNSSEC protocol. Must be 3');
+            }
         }
+    }
+
+    public function listContacts(array $options = []): array
+    {
+        $queryParams = $this->processPaginationParams($options);
+
+        $result = $this->executeRequest('get', 'contacts', [
+            'query' => $queryParams
+        ], function() use ($options) {
+            return $this->listContacts($options);
+        });
+
+        if (!isset($result['data']) || !is_array($result['data'])) {
+            throw new \Exception('Invalid response format from contacts endpoint');
+        }
+
+        return $result;
+    }
+
+    public function checkDomainAvailability(string $domainName): array
+    {
+        $result = $this->executeRequest('get', sprintf('domains/availability/%s', urlencode($domainName)), [],
+            function() use ($domainName) {
+                return $this->checkDomainAvailability($domainName);
+            }
+        );
+
+        if (!isset($result['data'])) {
+            throw new \Exception('Invalid response format from availability endpoint');
+        }
+
+        return $result['data'];
     }
 }

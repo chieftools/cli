@@ -6,6 +6,7 @@ use App\Commands\Command;
 use App\Services\DomainChiefService;
 use App\Traits\Auth;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Artisan;
 
 class DomainCommand extends Command
 {
@@ -20,13 +21,14 @@ class DomainCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'domain {action? : Action to perform (list, register)}
+    protected $signature = 'domain {action? : Action to perform (list, register, availability)}
         {--page=1 : Page number for listing}
         {--per-page=25 : Items per page}
         {--query= : Filter domains by name}
         {--expand=* : Expand related data (tld, contacts)}
         {--format=table : Output format (table, json)}
-        {--detailed : Show detailed domain information}';
+        {--detailed : Show detailed domain information}
+        {domain? : Domain name to check availability}';
 
     /**
      * The description of the command.
@@ -58,7 +60,12 @@ class DomainCommand extends Command
                 return $this->listDomains();
 
             case 'register':
-                return $this->registerDomain();
+                return $this->call(DomainRegisterCommand::class);
+
+            case 'availability':
+                return $this->call(DomainAvailabilityCommand::class, [
+                    'domain' => $this->argument('domain')
+                ]);
 
             default:
                 $this->info('Available domain commands:');
@@ -70,6 +77,7 @@ class DomainCommand extends Command
                 $this->line('    --format        Output format (table, json)');
                 $this->line('    --detailed      Show detailed domain information');
                 $this->line('  domain register    Register a new domain');
+                $this->line('  domain availability Check domain availability');
                 return Command::SUCCESS;
         }
     }
@@ -381,14 +389,5 @@ class DomainCommand extends Command
                 $meta['total'] ?? 0
             ));
         }
-    }
-
-    /**
-     * Register a new domain
-     */
-    private function registerDomain()
-    {
-        $this->info('Domain registration is not implemented yet.');
-        return Command::SUCCESS;
     }
 }

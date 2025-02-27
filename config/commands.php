@@ -63,6 +63,11 @@ return [
         Illuminate\Console\Scheduling\ScheduleFinishCommand::class,
         Illuminate\Foundation\Console\VendorPublishCommand::class,
         LaravelZero\Framework\Commands\StubPublishCommand::class,
+
+        // Custom commands
+        \App\Commands\DomainChief\DomainRegisterCommand::class,
+        \App\Commands\DomainChief\DomainAvailabilityCommand::class,
+        \NunoMaduro\Collision\Adapters\Laravel\Commands\TestCommand::class
     ],
 
     /*

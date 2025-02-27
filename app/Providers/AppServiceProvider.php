@@ -25,8 +25,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(DomainChiefService::class, function ($app) {
             return new DomainChiefService(
-                $app->make(AuthService::class),
-                config('chief.api_version', 'v1')
+                $app->make(AuthService::class)
             );
         });
     }
