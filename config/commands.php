@@ -26,7 +26,9 @@ return [
     |
     */
 
-    'paths' => [app_path('Commands')],
+    'paths' => [
+        app_path('Commands'),
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -40,7 +42,7 @@ return [
     */
 
     'add' => [
-        //
+        // ...
     ],
 
     /*
@@ -56,6 +58,7 @@ return [
 
     'hidden' => [
         NunoMaduro\LaravelConsoleSummary\SummaryCommand::class,
+        NunoMaduro\Collision\Adapters\Laravel\Commands\TestCommand::class,
         Symfony\Component\Console\Command\DumpCompletionCommand::class,
         Symfony\Component\Console\Command\HelpCommand::class,
         Illuminate\Console\Scheduling\ScheduleRunCommand::class,
@@ -63,11 +66,6 @@ return [
         Illuminate\Console\Scheduling\ScheduleFinishCommand::class,
         Illuminate\Foundation\Console\VendorPublishCommand::class,
         LaravelZero\Framework\Commands\StubPublishCommand::class,
-
-        // Custom commands
-        \App\Commands\DomainChief\DomainRegisterCommand::class,
-        \App\Commands\DomainChief\DomainAvailabilityCommand::class,
-        \NunoMaduro\Collision\Adapters\Laravel\Commands\TestCommand::class
     ],
 
     /*
@@ -82,7 +80,7 @@ return [
     */
 
     'remove' => [
-        //
+        // ...
     ],
 
 ];

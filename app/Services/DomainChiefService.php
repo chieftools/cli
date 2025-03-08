@@ -3,22 +3,23 @@
 namespace App\Services;
 
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\ConnectException;
 
 class DomainChiefService
 {
-    private AuthService $auth;
-    private Client $client;
-    private string $baseUrl;
-
     private const VALID_EXPAND_VALUES = ['tld', 'contacts'];
 
-    public function __construct(AuthService $auth)
-    {
-        $this->auth = $auth;
-        $this->baseUrl = config('chief.domain_endpoint', 'https://domain.chief.app');
+    private Client $client;
+
+    private string $baseUrl;
+
+    public function __construct(
+        private readonly AuthService $auth,
+    ) {
+        $this->baseUrl = config('chief.endpoints.domain');
+
         $this->initializeClient();
     }
 
@@ -26,15 +27,15 @@ class DomainChiefService
     {
         $this->client = new Client([
             'base_uri' => rtrim($this->baseUrl, '/') . '/api/v1/',
-            'timeout' => 30,
-            'headers' => $this->getHeaders(),
+            'timeout'  => 30,
+            'headers'  => $this->getHeaders(),
         ]);
     }
 
     private function getHeaders(): array
     {
         $headers = [
-            'Accept' => 'application/json',
+            'Accept'       => 'application/json',
             'Content-Type' => 'application/json',
         ];
 
@@ -42,41 +43,44 @@ class DomainChiefService
             $headers['Authorization'] = 'Bearer ' . $this->auth->getApiKey();
         }
 
-        if ($this->auth->getTeam()) {
-            $headers['X-Chief-Team'] = $this->auth->getTeam();
+        if ($this->auth->getTeamSlug()) {
+            $headers['X-Chief-Team'] = $this->auth->getTeamSlug();
         }
 
         return $headers;
     }
 
     /**
-     * Validate API key availability
+     * Validate API key availability.
      *
      * @throws \Exception
      */
     private function validateApiKey(): void
     {
         if (!$this->auth->hasApiKey()) {
-            throw new \Exception("API key not set. Please use the auth login command to set it.");
+            throw new \Exception('API key not set. Please use the auth login command to set it.');
         }
     }
 
     /**
-     * Execute API request with automatic token refresh on 401
+     * Execute API request with automatic token refresh on 401.
      *
-     * @param string $method HTTP method
-     * @param string $endpoint API endpoint
-     * @param array $options Request options
+     * @param string   $method        HTTP method
+     * @param string   $endpoint      API endpoint
+     * @param array    $options       Request options
      * @param callable $retryCallback Function to call for retry
-     * @return array
+     *
      * @throws \Exception
+     *
+     * @return array
      */
-    private function executeRequest(string $method, string $endpoint, array $options = [], callable $retryCallback = null): array
+    private function executeRequest(string $method, string $endpoint, array $options = [], ?callable $retryCallback = null): array
     {
         $this->validateApiKey();
 
         try {
             $response = $this->client->$method($endpoint, $options);
+
             return json_decode($response->getBody()->getContents(), true);
         } catch (ClientException $e) {
             if ($e->getResponse()->getStatusCode() === 401 && $this->auth->refreshAccessToken()) {
@@ -89,29 +93,31 @@ class DomainChiefService
             throw new \Exception(
                 "Failed to {$method} {$endpoint}: " . $e->getMessage(),
                 $e->getCode(),
-                $e
+                $e,
             );
         } catch (ConnectException $e) {
             throw new \Exception(
                 'Failed to connect to the domain service. Please check your internet connection and try again.',
                 $e->getCode(),
-                $e
+                $e,
             );
         } catch (GuzzleException $e) {
             throw new \Exception(
                 "Failed to {$method} {$endpoint}: " . $e->getMessage(),
                 $e->getCode(),
-                $e
+                $e,
             );
         }
     }
 
     /**
-     * Process pagination parameters
+     * Process pagination parameters.
      *
      * @param array $options Input options
-     * @return array Processed query parameters
+     *
      * @throws \Exception
+     *
+     * @return array Processed query parameters
      */
     private function processPaginationParams(array $options): array
     {
@@ -135,11 +141,13 @@ class DomainChiefService
     }
 
     /**
-     * Process expand parameters
+     * Process expand parameters.
      *
      * @param array $options Input options
-     * @return string|null Processed expand parameter
+     *
      * @throws \Exception
+     *
+     * @return string|null Processed expand parameter
      */
     private function processExpandParam(array $options): ?string
     {
@@ -156,7 +164,7 @@ class DomainChiefService
             throw new \Exception(sprintf(
                 'Invalid expand values: %s. Allowed values are: %s',
                 implode(', ', $invalidValues),
-                implode(', ', self::VALID_EXPAND_VALUES)
+                implode(', ', self::VALID_EXPAND_VALUES),
             ));
         }
 
@@ -182,8 +190,8 @@ class DomainChiefService
         }
 
         return $this->executeRequest('get', 'domains', [
-            'query' => $queryParams
-        ], function() use ($options) {
+            'query' => $queryParams,
+        ], function () use ($options) {
             return $this->listDomains($options);
         });
     }
@@ -222,16 +230,17 @@ class DomainChiefService
         }
 
         return $this->executeRequest('post', 'domains', [
-            'json' => $params
-        ], function() use ($params) {
+            'json' => $params,
+        ], function () use ($params) {
             return $this->registerOrTransferDomain($params);
         });
     }
 
     /**
-     * Validate DNSSEC keys
+     * Validate DNSSEC keys.
      *
      * @param array $keys DNSSEC keys
+     *
      * @throws \Exception
      */
     private function validateDnssecKeys(array $keys): void
@@ -260,8 +269,8 @@ class DomainChiefService
         $queryParams = $this->processPaginationParams($options);
 
         $result = $this->executeRequest('get', 'contacts', [
-            'query' => $queryParams
-        ], function() use ($options) {
+            'query' => $queryParams,
+        ], function () use ($options) {
             return $this->listContacts($options);
         });
 
@@ -275,9 +284,9 @@ class DomainChiefService
     public function checkDomainAvailability(string $domainName): array
     {
         $result = $this->executeRequest('get', sprintf('domains/availability/%s', urlencode($domainName)), [],
-            function() use ($domainName) {
+            function () use ($domainName) {
                 return $this->checkDomainAvailability($domainName);
-            }
+            },
         );
 
         if (!isset($result['data'])) {

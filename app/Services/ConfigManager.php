@@ -2,28 +2,32 @@
 
 namespace App\Services;
 
+use RuntimeException;
+
 class ConfigManager
 {
     private const DEFAULT_CONFIG = [
-        'api_key' => null,
+        'access_token'  => null,
         'refresh_token' => null,
-        'team_slug' => null,
-        'team_name' => null,
+        'team_slug'     => null,
+        'team_name'     => null,
     ];
 
     private string $configPath;
+
     private array $config;
 
-    public function __construct(string $basePath = null)
+    public function __construct()
     {
-        $this->configPath = $basePath ?? $_SERVER['HOME'] . '/.config/chief';
+        $this->configPath = $_SERVER['HOME'] . '/.config/chief';
+
         $this->initialize();
     }
 
-    public function initialize(): void
+    private function initialize(): void
     {
         if (!$this->ensureConfigDirectory()) {
-            throw new \RuntimeException("Unable to create config directory: {$this->configPath}");
+            throw new RuntimeException("Unable to create config directory: {$this->configPath}");
         }
 
         if (!file_exists($this->getConfigFile())) {
@@ -38,6 +42,7 @@ class ConfigManager
         if (!is_dir($this->configPath)) {
             return mkdir($this->configPath, 0755, true);
         }
+
         return true;
     }
 
@@ -62,7 +67,7 @@ class ConfigManager
 
     public function has(string $key): bool
     {
-        return isset($this->config[$key]) && $this->config[$key] !== null;
+        return isset($this->config[$key]);
     }
 
     public function remove(string $key): void
@@ -95,7 +100,7 @@ class ConfigManager
         $configContent = "<?php\n\nreturn " . var_export($config, true) . ";\n";
 
         if (file_put_contents($this->getConfigFile(), $configContent) === false) {
-            throw new \RuntimeException("Failed to write config file: {$this->getConfigFile()}");
+            throw new RuntimeException("Failed to write config file: {$this->getConfigFile()}");
         }
     }
 
@@ -109,12 +114,13 @@ class ConfigManager
         return $this->configPath . '/config.php';
     }
 
-    public function updateAuthData(string $accessToken, string $refreshToken, string $teamSlug): void
+    public function updateAuthData(string $accessToken, ?string $refreshToken, ?string $teamSlug, ?string $teamName): void
     {
         $this->setMultiple([
-            'api_key' => $accessToken,
+            'access_token'  => $accessToken,
             'refresh_token' => $refreshToken,
-            'team_slug' => $teamSlug,
+            'team_slug'     => $teamSlug,
+            'team_name'     => $teamName,
         ]);
     }
 }

@@ -3,31 +3,19 @@
 namespace App\Providers;
 
 use App\Services\AuthService;
+use App\Services\ConfigManager;
 use App\Services\DomainChiefService;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Bootstrap any application services.
-     */
-    public function boot(): void
-    {
-        //
-    }
-
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         $this->loadConfigurationFile();
 
-        $this->app->singleton(DomainChiefService::class, function ($app) {
-            return new DomainChiefService(
-                $app->make(AuthService::class)
-            );
-        });
+        $this->app->singleton(AuthService::class);
+        $this->app->singleton(ConfigManager::class);
+        $this->app->singleton(DomainChiefService::class);
     }
 
     protected function loadConfigurationFile(): void

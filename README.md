@@ -1,34 +1,46 @@
-<p align="center">
-    <img title="Laravel Zero" height="100" src="https://raw.githubusercontent.com/laravel-zero/docs/master/images/logo/laravel-zero-readme.png" alt="Laravel Zero Logo" />
-</p>
+# Chief Tools CLI
 
-<p align="center">
-  <a href="https://github.com/laravel-zero/framework/actions"><img src="https://github.com/laravel-zero/laravel-zero/actions/workflows/tests.yml/badge.svg" alt="Build Status" /></a>
-  <a href="https://packagist.org/packages/laravel-zero/framework"><img src="https://img.shields.io/packagist/dt/laravel-zero/framework.svg" alt="Total Downloads" /></a>
-  <a href="https://packagist.org/packages/laravel-zero/framework"><img src="https://img.shields.io/packagist/v/laravel-zero/framework.svg?label=stable" alt="Latest Stable Version" /></a>
-  <a href="https://packagist.org/packages/laravel-zero/framework"><img src="https://img.shields.io/packagist/l/laravel-zero/framework.svg" alt="License" /></a>
-</p>
+An easy-to-use command line interface for [Chief Tools](https://chief.app?ref=ghcli).
 
-Laravel Zero was created by [Nuno Maduro](https://github.com/nunomaduro) and [Owen Voke](https://github.com/owenvoke), and is a micro-framework that provides an elegant starting point for your console application. It is an **unofficial** and customized version of Laravel optimized for building command-line applications.
+## Installation
 
-- Built on top of the [Laravel](https://laravel.com) components.
-- Optional installation of Laravel [Eloquent](https://laravel-zero.com/docs/database/), Laravel [Logging](https://laravel-zero.com/docs/logging/) and many others.
-- Supports interactive [menus](https://laravel-zero.com/docs/build-interactive-menus/) and [desktop notifications](https://laravel-zero.com/docs/send-desktop-notifications/) on Linux, Windows & MacOS.
-- Ships with a [Scheduler](https://laravel-zero.com/docs/task-scheduling/) and  a [Standalone Compiler](https://laravel-zero.com/docs/build-a-standalone-application/).
-- Integration with [Collision](https://github.com/nunomaduro/collision) - Beautiful error reporting
+You can install the CLI using [Composer](https://getcomposer.org/):
 
-------
+```bash
+composer global require chieftools/cli
+```
 
-## Documentation
+## Usage
 
-For full documentation, visit [laravel-zero.com](https://laravel-zero.com/).
+You can use the CLI to interact with various Chief Tools. To see the available commands, run:
 
-## Support the development
-**Do you like this project? Support it by donating**
+```bash
+chief
+```
 
-- PayPal: [Donate](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=66BYDWAT92N6L)
-- Patreon: [Donate](https://www.patreon.com/nunomaduro)
+Most commands require authentication. You can authenticate using the `chief auth login` command. This will open a browser window where you can log in to your Chief Tools account.
+
+```bash
+chief auth login
+```
+
+You can see the current authentication status using the `chief auth status` command.
+
+```bash
+chief auth status
+```
+
+## Credits
+
+- [Stan Menten](https://stanmenten.dev) (Original author)
+- [Alex Bouma](https://github.com/stayallive) (Maintainer)
+- [Chief Tools](https://chief.app?ref=ghcli)
+- [All Contributors](../../contributors)
+
+## Security Vulnerabilities
+
+If you discover a security vulnerability, please send an e-mail to us at `hello@chief.app`. All security vulnerabilities will be swiftly addressed.
 
 ## License
 
-Laravel Zero is an open-source software licensed under the MIT license.
+The Chief Tools CLI is open-sourced software licensed under the [MIT license](http://opensource.org/licenses/MIT).

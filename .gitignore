@@ -1,5 +1,39 @@
-/vendor
+# Node.js
+/node_modules
+/yarn-error.log
+/webpack.stats.json
+/webpack.stats.json.tmp
+
+# IDE
 /.idea
-/.vscode
-/.vagrant
+/.php_cs.cache
+/_ide_helper.php
+/.phpstorm.meta.php
+/.php-cs-fixer.cache
+/programmatic-types.graphql
+
+# GraphQL
+/hive.json
+/schema.json
+/schema.graphql
+/schema-directives.graphql
+/_lighthouse_ide_helper.php
+
+# OSX Crap
+.DS_Store
+
+# PHP Composer
+/vendor
+/composer.phar
+
+# Environment config
+.env
+.env.gen
+/storage/*.key
+
+# CI
 .phpunit.result.cache
+
+# Asset compilation
+/public/hot
+/public/build
