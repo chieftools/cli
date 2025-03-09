@@ -1,6 +1,23 @@
-* text=auto eol=lf
+* text=auto
+
+# git files
+.gitattributes export-ignore
+.gitignore export-ignore
 /.github export-ignore
-.scrutinizer.yml export-ignore
-BACKERS.md export-ignore
-CONTRIBUTING.md export-ignore
-CHANGELOG.md export-ignore
+
+# IDE files
+.idea export-ignore
+
+# Disable diffs on minified / system generated files
+*.min.js      -diff
+*.min.js.map  -diff
+*.min.css     -diff
+*.min.css.map -diff
+*.lock        -diff
+*.dat         -diff
+
+# Exclude vendor libraries and/or files we don't directly write/control this prevents
+# GitHub from "counting" these files to detect the languages used in the project we
+# also prevent showing diffs for these files because they are generaly very large
+.env* linguist-vendored
+builds/** linguist-vendored -diff
