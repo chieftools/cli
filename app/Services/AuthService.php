@@ -4,47 +4,41 @@ namespace App\Services;
 
 use Exception;
 use RuntimeException;
-use GuzzleHttp\Client;
 use Illuminate\Support\Arr;
 use GuzzleHttp\Exception\GuzzleException;
-use GuzzleHttp\Exception\BadResponseException;
 
-class AuthService
+readonly class AuthService
 {
-    private Client $client;
-
     public function __construct(
-        private readonly ConfigManager $config,
-    ) {
-        $this->client = http(rtrim(config('chief.endpoints.auth'), '/') . '/api/');
+        private ConfigManager $config,
+    ) {}
+
+    private function getOpenIDConfig(string $key): mixed
+    {
+        static $memoizedConfig = null;
+
+        if ($memoizedConfig === null) {
+            $memoizedConfig = $this->makeRequest('GET', config('chief.endpoints.openid'));
+        }
+
+        return Arr::get($memoizedConfig, $key);
     }
 
     public function initiateDeviceAuth(): array
     {
-        $config = $this->makeRequest('GET', config('chief.endpoints.openid'));
-
-        $authorization = $this->makeRequest('POST', $config['device_authorization_endpoint'], [
+        return $this->makeRequest('POST', $this->getOpenIDConfig('device_authorization_endpoint'), [
             'json' => [
                 'client_id' => config('chief.client_id'),
                 'scope'     => config('chief.scopes'),
             ],
         ]);
-
-        return [
-            'verification_uri'  => $authorization['verification_uri_complete'],
-            'device_code'       => $authorization['device_code'],
-            'expires_in'        => $authorization['expires_in'],
-            'interval'          => $authorization['interval'],
-            'token_endpoint'    => $config['token_endpoint'],
-            'userinfo_endpoint' => $config['userinfo_endpoint'],
-        ];
     }
 
     public function pollForToken(array $authData): ?array
     {
-        $start         = time();
-        $tokenEndpoint = $authData['token_endpoint'];
-        $requestData   = [
+        $start = time();
+
+        $requestData = [
             'json' => [
                 'client_id'   => config('chief.client_id'),
                 'device_code' => $authData['device_code'],
@@ -54,7 +48,7 @@ class AuthService
 
         while (time() - $start < $authData['expires_in']) {
             try {
-                $response = $this->makeRequest('POST', $tokenEndpoint, $requestData);
+                $response = $this->makeRequest('POST', $this->getOpenIDConfig('token_endpoint'), $requestData);
 
                 if (!isset($response['error'])) {
                     return [
@@ -69,7 +63,8 @@ class AuthService
                 }
 
                 sleep($authData['interval']);
-            } catch (Exception $e) {
+            } catch (Exception) {
+                // @TODO: Should we try to handle something here?
                 sleep($authData['interval']);
             }
         }
@@ -77,17 +72,20 @@ class AuthService
         return null;
     }
 
-    public function completeAuthentication(array $tokenData, string $userInfoEndpoint): array
+    public function completeAuthentication(array $tokenData): array
     {
-        $user = $this->makeRequest('GET', $userInfoEndpoint, [
+        $user = $this->makeRequest('GET', $this->getOpenIDConfig('userinfo_endpoint'), [
             'headers' => ['Authorization' => 'Bearer ' . $tokenData['access_token']],
         ]);
 
-        $team = Arr::first($user['teams']);
-
-        $this->updateAuthData(
+        $this->updateTokens(
             $tokenData['access_token'],
             $tokenData['refresh_token'] ?? null,
+        );
+
+        $team = Arr::first($user['teams']);
+
+        $this->updateTeamInfo(
             $team['slug'] ?? null,
             $team['name'] ?? null,
         );
@@ -103,14 +101,7 @@ class AuthService
             return false;
         }
 
-        $config = $this->makeRequest('GET', config('chief.endpoints.openid'));
-
-        // Validate token endpoint exists
-        if (empty($config['token_endpoint'])) {
-            throw new RuntimeException('Invalid auth configuration');
-        }
-
-        $response = $this->makeRequest('POST', $config['token_endpoint'], [
+        $response = $this->makeRequest('POST', $this->getOpenIDConfig('token_endpoint'), [
             'json' => [
                 'client_id'     => config('chief.client_id'),
                 'refresh_token' => $refreshToken,
@@ -125,7 +116,7 @@ class AuthService
         }
 
         // Get user info to ensure we have valid team data
-        $userInfo = $this->makeRequest('GET', $config['userinfo_endpoint'], [
+        $userInfo = $this->makeRequest('GET', $this->getOpenIDConfig('userinfo_endpoint'), [
             'headers' => ['Authorization' => 'Bearer ' . $response['access_token']],
         ]);
 
@@ -133,11 +124,14 @@ class AuthService
             throw new RuntimeException('No teams available in user info');
         }
 
-        $team = Arr::first($userInfo['teams']);
-
-        $this->updateAuthData(
+        $this->updateTokens(
             $response['access_token'],
             $response['refresh_token'] ?? null,
+        );
+
+        $team = Arr::first($userInfo['teams']);
+
+        $this->updateTeamInfo(
             $team['slug'] ?? null,
             $team['name'] ?? null,
         );
@@ -145,9 +139,24 @@ class AuthService
         return true;
     }
 
+    public function revokeTokens(): void
+    {
+        if (!$this->config->has('refresh_token') && !$this->config->has('access_token')) {
+            return;
+        }
+
+        http()->post($this->getOpenIDConfig('revocation_endpoint'), [
+            'json' => [
+                'client_id' => config('chief.client_id'),
+                // If we are revoking the refresh token we don't need to also revoke the access token since they are connected
+                'token'     => $this->config->get('refresh_token') ?? $this->config->get('access_token'),
+            ],
+        ]);
+    }
+
     public function getUserInfo(): array
     {
-        return $this->request('GET', '/oauth/userinfo');
+        return $this->makeRequest('GET', $this->getOpenIDConfig('userinfo_endpoint'));
     }
 
     public function clearAuthData(): void
@@ -175,43 +184,20 @@ class AuthService
         return $this->config->has('team_slug');
     }
 
-    public function updateAuthData(string $accessToken, ?string $refreshToken, ?string $teamSlug, ?string $teamName): void
+    public function updateTokens(string $accessToken, ?string $refreshToken): void
     {
         $this->config->setMultiple([
             'access_token'  => $accessToken,
             'refresh_token' => $refreshToken,
-            'team_slug'     => $teamSlug,
-            'team_name'     => $teamName,
         ]);
     }
 
-    private function request(string $method, string $endpoint, array $data = []): array
+    public function updateTeamInfo(?string $teamSlug, ?string $teamName): void
     {
-        if (!$this->isAuthenticated()) {
-            throw new RuntimeException("Use 'chief auth login' to authenticate first.");
-        }
-
-        try {
-            $normalizedEndpoint = '/api' . ($endpoint[0] === '/' ? $endpoint : '/' . $endpoint);
-
-            $response = $this->client->request($method, $normalizedEndpoint, [
-                'json'    => $data,
-                'headers' => $this->getHeaders(),
-            ]);
-
-            return json_decode($response->getBody(), true);
-        } catch (GuzzleException $e) {
-            // Check specifically for 401 status
-            if ($e instanceof BadResponseException && $e->getResponse()->getStatusCode() === 401) {
-                // Try to refresh the token
-                if ($this->refreshAccessToken()) {
-                    // Retry the original request with new token
-                    return $this->request($method, $endpoint, $data);
-                }
-            }
-
-            throw new RuntimeException('API request failed: ' . $e->getMessage());
-        }
+        $this->config->setMultiple([
+            'team_slug' => $teamSlug,
+            'team_name' => $teamName,
+        ]);
     }
 
     private function makeRequest(string $method, string $url, array $options = []): array
@@ -221,7 +207,7 @@ class AuthService
         try {
             $response = $client->request($method, $url, $options);
 
-            return json_decode($response->getBody(), true);
+            return json_decode($response->getBody(), true, 512, JSON_THROW_ON_ERROR);
         } catch (GuzzleException $e) {
             throw new RuntimeException('Request failed: ' . $e->getMessage());
         }
