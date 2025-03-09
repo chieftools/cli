@@ -173,6 +173,8 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
+        with:
+          fetch-tags: true
 
       - name: Setup PHP cache
         uses: shivammathur/cache-extensions@v1
