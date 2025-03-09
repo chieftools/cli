@@ -6,6 +6,7 @@ use App\Services\AuthService;
 use App\Services\ConfigManager;
 use App\Services\DomainChiefService;
 use Illuminate\Support\ServiceProvider;
+use LaravelZero\Framework\Components\Updater\Strategy\GithubReleasesStrategy;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -18,5 +19,9 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(AuthService::class);
         $this->app->singleton(DomainChiefService::class);
+
+        $this->app->afterResolving(GithubReleasesStrategy::class, function (GithubReleasesStrategy $strategy) {
+            $strategy->setPharName('chief.phar');
+        });
     }
 }
