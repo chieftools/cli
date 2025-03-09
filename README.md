@@ -4,10 +4,10 @@ An easy-to-use command line interface for [Chief Tools](https://chief.app?ref=gh
 
 ## Installation
 
-You can install the CLI using [Composer](https://getcomposer.org/):
+You can download the PHAR file directly from the GitHub releases page or you can install using [Composer](https://getcomposer.org/):
 
 ```bash
-composer global require chieftools/cli
+composer global require "chieftools/cli:*"
 ```
 
 ## Usage
