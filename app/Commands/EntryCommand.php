@@ -4,6 +4,7 @@ namespace App\Commands;
 
 use Symfony\Component\Console\Input\ArgvInput;
 use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Helper\DescriptorHelper;
 
 abstract class EntryCommand extends Command
 {
@@ -21,9 +22,21 @@ abstract class EntryCommand extends Command
 
     public function handle(): int
     {
-        $subCommandName = $this->argument('subcommand');
+        $subCommandName = $this->argument('subcommand') ?? $this->input->getFirstArgument();
 
-        if ($subCommandName === null) {
+        if ($subCommandName === null || $subCommandName === 'help') {
+            $subCommandForHelp = $this->getCommandFromName(
+                $subCommandName = $this->input->getArguments()[1] ?? '',
+            );
+
+            if ($subCommandForHelp !== null) {
+                $subCommandForHelp->setName("chief {$this->name} {$subCommandName}");
+                $helper = new DescriptorHelper;
+                $helper->describe($this->output, $subCommandForHelp);
+
+                return self::INVALID;
+            }
+
             $this->showHelp();
 
             return self::INVALID;

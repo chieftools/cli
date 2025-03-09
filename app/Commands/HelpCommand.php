@@ -4,6 +4,7 @@ namespace App\Commands;
 
 use App\Commands\Account\AuthCommand;
 use App\Commands\Domain\DomainCommand;
+use Symfony\Component\Console\Input\ArgvInput;
 
 class HelpCommand extends Command
 {
@@ -26,7 +27,13 @@ class HelpCommand extends Command
     public function handle(): int
     {
         if ($this->command) {
-            return $this->runCommand($this->command, ['help'], $this->output);
+            $subCommandName = null;
+
+            if ($this->input instanceof ArgvInput) {
+                $subCommandName = $this->input->getRawTokens(true)[0] ?? null;
+            }
+
+            return $this->runCommand($this->command, ['help', $subCommandName], $this->output);
         }
 
         $this->line('Work with Chief Tools from the command line.');
@@ -34,7 +41,7 @@ class HelpCommand extends Command
         $this->line('');
 
         $this->boldLine('USAGE');
-        $this->line("  chief <command> <subcommand> [flags]");
+        $this->line('  chief <command> <subcommand> [flags]');
 
         $this->line('');
 
