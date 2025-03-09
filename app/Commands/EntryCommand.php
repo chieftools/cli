@@ -92,13 +92,6 @@ abstract class EntryCommand extends Command
             return null;
         }
 
-        /** @var \App\Commands\Command $command */
-        $command = $this->resolveCommand($commands[$name]);
-
-        $command->setApplication($this->getApplication());
-        /** @phpstan-ignore-next-line we are passing the correct type here */
-        $command->setLaravel($this->getLaravel());
-
-        return $command;
+        return $this->getCommandFromClass($commands[$name]);
     }
 }
