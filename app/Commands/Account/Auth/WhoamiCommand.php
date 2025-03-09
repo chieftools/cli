@@ -15,7 +15,7 @@ class WhoamiCommand extends Command
     public function handle(): int
     {
         try {
-            if (!authService()->hasApiKey()) {
+            if (!authService()->isAuthenticated()) {
                 $this->warn('Not logged in. Use "auth login" to authenticate.');
 
                 return self::FAILURE;

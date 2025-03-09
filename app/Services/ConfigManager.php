@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Throwable;
 use RuntimeException;
 
 class ConfigManager
@@ -13,37 +14,24 @@ class ConfigManager
         'team_name'     => null,
     ];
 
-    private string $configPath;
+    private string $basePath;
 
+    /** @var array<string, mixed> */
     private array $config;
 
     public function __construct()
     {
-        $this->configPath = $_SERVER['HOME'] . '/.config/chief';
+        $this->basePath = $_SERVER['HOME'] . '/.config/chief';
 
-        $this->initialize();
-    }
-
-    private function initialize(): void
-    {
         if (!$this->ensureConfigDirectory()) {
-            throw new RuntimeException("Unable to create config directory: {$this->configPath}");
+            throw new RuntimeException("Unable to create config directory: {$this->basePath}");
         }
 
-        if (!file_exists($this->getConfigFile())) {
-            $this->writeConfig(self::DEFAULT_CONFIG);
+        $this->readConfig();
+
+        if (!file_exists($this->getConfigFilePath())) {
+            $this->writeConfig();
         }
-
-        $this->loadConfig();
-    }
-
-    private function ensureConfigDirectory(): bool
-    {
-        if (!is_dir($this->configPath)) {
-            return mkdir($this->configPath, 0755, true);
-        }
-
-        return true;
     }
 
     public function get(string $key, $default = null)
@@ -53,8 +41,7 @@ class ConfigManager
 
     public function set(string $key, $value): void
     {
-        $this->config[$key] = $value;
-        $this->writeConfig($this->config);
+        $this->setMultiple([$key => $value]);
     }
 
     public function setMultiple(array $values): void
@@ -62,7 +49,8 @@ class ConfigManager
         foreach ($values as $key => $value) {
             $this->config[$key] = $value;
         }
-        $this->writeConfig($this->config);
+
+        $this->writeConfig();
     }
 
     public function has(string $key): bool
@@ -72,55 +60,53 @@ class ConfigManager
 
     public function remove(string $key): void
     {
-        if (array_key_exists($key, $this->config)) {
-            $this->config[$key] = null;
-            $this->writeConfig($this->config);
+        if (!array_key_exists($key, $this->config)) {
+            return;
         }
+
+        $this->set($key, null);
     }
 
-    public function clear(): void
+    public function reset(): void
     {
         $this->config = self::DEFAULT_CONFIG;
-        $this->writeConfig($this->config);
+
+        $this->writeConfig();
     }
 
-    public function all(): array
+    private function readConfig(): void
     {
-        return $this->config;
-    }
+        try {
+            $loadedConfig = require $this->getConfigFilePath();
 
-    private function loadConfig(): void
-    {
-        $loadedConfig = require $this->getConfigFile();
-        $this->config = is_array($loadedConfig) ? $loadedConfig : self::DEFAULT_CONFIG;
-    }
-
-    private function writeConfig(array $config): void
-    {
-        $configContent = "<?php\n\nreturn " . var_export($config, true) . ";\n";
-
-        if (file_put_contents($this->getConfigFile(), $configContent) === false) {
-            throw new RuntimeException("Failed to write config file: {$this->getConfigFile()}");
+            $this->config = is_array($loadedConfig)
+                ? array_merge(self::DEFAULT_CONFIG, $loadedConfig)
+                : self::DEFAULT_CONFIG;
+        } catch (Throwable $e) {
+            throw new RuntimeException("Failed to load config file: {$this->getConfigFilePath()} ({$e->getMessage()})", 0, $e);
         }
     }
 
-    public function getConfigPath(): string
+    private function writeConfig(): void
     {
-        return $this->configPath;
+        $fileContents = '<?php' . PHP_EOL . PHP_EOL . 'return ' . var_export($this->config, true) . ';' . PHP_EOL;
+
+        if (!file_put_contents($this->getConfigFilePath(), $fileContents)) {
+            throw new RuntimeException("Failed to write config file: {$this->getConfigFilePath()}");
+        }
     }
 
-    public function getConfigFile(): string
+    private function getConfigFilePath(): string
     {
-        return $this->configPath . '/config.php';
+        return $this->basePath . '/config.php';
     }
 
-    public function updateAuthData(string $accessToken, ?string $refreshToken, ?string $teamSlug, ?string $teamName): void
+    private function ensureConfigDirectory(): bool
     {
-        $this->setMultiple([
-            'access_token'  => $accessToken,
-            'refresh_token' => $refreshToken,
-            'team_slug'     => $teamSlug,
-            'team_name'     => $teamName,
-        ]);
+        if (is_dir($this->basePath)) {
+            return true;
+        }
+
+        return mkdir($this->basePath, 0755, true);
     }
 }

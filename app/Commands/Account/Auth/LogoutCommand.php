@@ -12,7 +12,7 @@ class LogoutCommand extends Command
     public function handle(): int
     {
         // @TODO: Also try to revoke the (access/refresh) token when logging out
-        authService()->clearApiKey();
+        authService()->clearAuthData();
 
         $this->info('Successfully logged out.');
 

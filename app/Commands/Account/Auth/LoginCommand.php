@@ -23,7 +23,7 @@ class LoginCommand extends Command
     {
         // Check if we are already authenticated and show the user info instead
         // @TODO: Ask the user if they want to re-authenticate if they are already logged in
-        if (authService()->hasApiKey()) {
+        if (authService()->isAuthenticated()) {
             return $this->runCommand(WhoamiCommand::class, [], $this->output);
         }
 

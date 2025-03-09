@@ -14,39 +14,9 @@ class AuthService
     private Client $client;
 
     public function __construct(
-        private readonly ConfigManager $configManager,
+        private readonly ConfigManager $config,
     ) {
         $this->client = http(rtrim(config('chief.endpoints.auth'), '/') . '/api/');
-    }
-
-    private function getHeaders(): array
-    {
-        $headers = [
-            'Accept' => 'application/json',
-        ];
-
-        if ($this->hasApiKey()) {
-            $headers['Authorization'] = 'Bearer ' . $this->getApiKey();
-        }
-
-        if ($this->hasTeamSlug()) {
-            $headers['X-Chief-Team'] = $this->getTeamSlug();
-        }
-
-        return $headers;
-    }
-
-    private function makeRequest(string $method, string $url, array $options = []): array
-    {
-        $client = http(headers: $this->getHeaders());
-
-        try {
-            $response = $client->request($method, $url, $options);
-
-            return json_decode($response->getBody(), true);
-        } catch (GuzzleException $e) {
-            throw new RuntimeException('Request failed: ' . $e->getMessage());
-        }
     }
 
     public function initiateDeviceAuth(): array
@@ -107,15 +77,15 @@ class AuthService
         return null;
     }
 
-    public function completeAuthentication(array $tokenData, string $userinfoEndpoint): array
+    public function completeAuthentication(array $tokenData, string $userInfoEndpoint): array
     {
-        $user = $this->makeRequest('GET', $userinfoEndpoint, [
+        $user = $this->makeRequest('GET', $userInfoEndpoint, [
             'headers' => ['Authorization' => 'Bearer ' . $tokenData['access_token']],
         ]);
 
         $team = Arr::first($user['teams']);
 
-        $this->configManager->updateAuthData(
+        $this->updateAuthData(
             $tokenData['access_token'],
             $tokenData['refresh_token'] ?? null,
             $team['slug'] ?? null,
@@ -127,7 +97,7 @@ class AuthService
 
     public function refreshAccessToken(): bool
     {
-        $refreshToken = $this->configManager->get('refresh_token');
+        $refreshToken = $this->config->get('refresh_token');
 
         if (empty($refreshToken)) {
             return false;
@@ -165,8 +135,7 @@ class AuthService
 
         $team = Arr::first($userInfo['teams']);
 
-        // Update with new tokens and team data
-        $this->configManager->updateAuthData(
+        $this->updateAuthData(
             $response['access_token'],
             $response['refresh_token'] ?? null,
             $team['slug'] ?? null,
@@ -176,10 +145,50 @@ class AuthService
         return true;
     }
 
-    public function request(string $method, string $endpoint, array $data = []): array
+    public function getUserInfo(): array
     {
-        if (!$this->configManager->has('access_token')) {
-            throw new RuntimeException("API key not set. Use 'login' command to set it.");
+        return $this->request('GET', '/oauth/userinfo');
+    }
+
+    public function clearAuthData(): void
+    {
+        $this->config->reset();
+    }
+
+    public function getBearerToken(): ?string
+    {
+        return $this->config->get('access_token');
+    }
+
+    public function isAuthenticated(): bool
+    {
+        return $this->config->has('access_token');
+    }
+
+    public function getTeamSlug(): ?string
+    {
+        return $this->config->get('team_slug');
+    }
+
+    public function hasTeamSlug(): bool
+    {
+        return $this->config->has('team_slug');
+    }
+
+    public function updateAuthData(string $accessToken, ?string $refreshToken, ?string $teamSlug, ?string $teamName): void
+    {
+        $this->config->setMultiple([
+            'access_token'  => $accessToken,
+            'refresh_token' => $refreshToken,
+            'team_slug'     => $teamSlug,
+            'team_name'     => $teamName,
+        ]);
+    }
+
+    private function request(string $method, string $endpoint, array $data = []): array
+    {
+        if (!$this->isAuthenticated()) {
+            throw new RuntimeException("Use 'chief auth login' to authenticate first.");
         }
 
         try {
@@ -205,33 +214,33 @@ class AuthService
         }
     }
 
-    public function getUserInfo(): array
+    private function makeRequest(string $method, string $url, array $options = []): array
     {
-        return $this->request('GET', '/oauth/userinfo');
+        $client = http(headers: $this->getHeaders());
+
+        try {
+            $response = $client->request($method, $url, $options);
+
+            return json_decode($response->getBody(), true);
+        } catch (GuzzleException $e) {
+            throw new RuntimeException('Request failed: ' . $e->getMessage());
+        }
     }
 
-    public function clearApiKey(): void
+    private function getHeaders(): array
     {
-        $this->configManager->remove('access_token');
-    }
+        $headers = [
+            'Accept' => 'application/json',
+        ];
 
-    public function hasApiKey(): bool
-    {
-        return $this->configManager->has('access_token');
-    }
+        if ($this->isAuthenticated()) {
+            $headers['Authorization'] = "Bearer {$this->getBearerToken()}";
+        }
 
-    public function getApiKey(): ?string
-    {
-        return $this->configManager->get('access_token');
-    }
+        if ($this->hasTeamSlug()) {
+            $headers['X-Chief-Team'] = $this->getTeamSlug();
+        }
 
-    public function getTeamSlug(): ?string
-    {
-        return $this->configManager->get('team_slug');
-    }
-
-    public function hasTeamSlug(): bool
-    {
-        return $this->configManager->has('team_slug');
+        return $headers;
     }
 }
