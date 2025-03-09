@@ -30,6 +30,10 @@ You can see the current authentication status using the `chief auth status` comm
 chief auth status
 ```
 
+## Feature requests
+
+You can submit feature requests and bug reports on the [roadmap](https://roadmap.chief.tools/projects/cli?ref=ghcli).
+
 ## Credits
 
 - [Stan Menten](https://stanmenten.dev) (Original author)
