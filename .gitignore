@@ -35,5 +35,4 @@
 .phpunit.result.cache
 
 # Asset compilation
-/public/hot
-/public/build
+/builds/*
