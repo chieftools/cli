@@ -11,8 +11,12 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->singleton(
+            ConfigManager::class,
+            static fn () => new ConfigManager($_SERVER['HOME'] . '/.config/chief'),
+        );
+
         $this->app->singleton(AuthService::class);
-        $this->app->singleton(ConfigManager::class);
         $this->app->singleton(DomainChiefService::class);
     }
 }

@@ -14,24 +14,13 @@ class ConfigManager
         'team_name'     => null,
     ];
 
-    private string $basePath;
-
     /** @var array<string, mixed> */
     private array $config;
 
-    public function __construct()
-    {
-        $this->basePath = $_SERVER['HOME'] . '/.config/chief';
-
-        if (!$this->ensureConfigDirectory()) {
-            throw new RuntimeException("Unable to create config directory: {$this->basePath}");
-        }
-
+    public function __construct(
+        private readonly string $basePath,
+    ) {
         $this->readConfig();
-
-        if (!file_exists($this->getConfigFilePath())) {
-            $this->writeConfig();
-        }
     }
 
     public function get(string $key, $default = null)
@@ -76,6 +65,12 @@ class ConfigManager
 
     private function readConfig(): void
     {
+        if (!file_exists($this->getConfigFilePath())) {
+            $this->config = self::DEFAULT_CONFIG;
+
+            return;
+        }
+
         try {
             $loadedConfig = require $this->getConfigFilePath();
 
@@ -89,6 +84,10 @@ class ConfigManager
 
     private function writeConfig(): void
     {
+        if (!$this->ensureConfigDirectoryExists()) {
+            throw new RuntimeException("Unable to create config directory: {$this->basePath}");
+        }
+
         $fileContents = '<?php' . PHP_EOL . PHP_EOL . 'return ' . var_export($this->config, true) . ';' . PHP_EOL;
 
         if (!file_put_contents($this->getConfigFilePath(), $fileContents)) {
@@ -101,7 +100,7 @@ class ConfigManager
         return $this->basePath . '/config.php';
     }
 
-    private function ensureConfigDirectory(): bool
+    private function ensureConfigDirectoryExists(): bool
     {
         if (is_dir($this->basePath)) {
             return true;
