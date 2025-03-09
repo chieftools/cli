@@ -15,8 +15,9 @@ class HelpCommand extends Command
     private ?Command $command = null;
 
     private static array $commands = [
-        'auth'   => AuthCommand::class,
-        'domain' => DomainCommand::class,
+        'auth'        => AuthCommand::class,
+        'domain'      => DomainCommand::class,
+        'self-update' => 'Try to update the Chief Tools CLI to the latest version',
     ];
 
     private static array $flags = [
@@ -53,7 +54,7 @@ class HelpCommand extends Command
                 '  %s:%s %s',
                 $commandName,
                 str_repeat(' ', $maxColumnWidth - strlen($commandName) + 2),
-                $this->getCommandFromClass($commandClass)?->getDescription() ?? 'No description available',
+                $this->getCommandFromClass($commandClass)?->getDescription() ?? $commandClass,
             ));
         }
 

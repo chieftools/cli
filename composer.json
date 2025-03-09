@@ -27,6 +27,7 @@
         "guzzlehttp/guzzle": "^7.9",
         "larastan/larastan": "^3.1",
         "laravel-zero/framework": "^11.36",
+        "laravel-zero/phar-updater": "^1.4",
         "symfony/yaml": "^7.2"
     },
     "replace": {
