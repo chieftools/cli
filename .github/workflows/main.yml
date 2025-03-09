@@ -235,3 +235,12 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ github.ref }}
           tags: true
+
+      - name: Rename artifact
+        run: mv builds/chief builds/chief.phar
+      - name: Create release
+        uses: ncipollo/release-action@v1
+        with:
+          generateReleaseNotes: true
+          artifacts: "builds/chief.phar"
+          tag: "${{ steps.previous_tag.outputs.next_version }}"
