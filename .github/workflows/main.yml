@@ -149,11 +149,7 @@ jobs:
             ${{ runner.os }}-phpstan-${{ github.ref }}-
             ${{ runner.os }}-phpstan-
       - name: Run PHPStan
-        run: |
-          cp .env.testing.template .env.testing
-          composer phpstan:ci
-        env:
-          APP_ENV: 'testing'
+        run: composer phpstan:ci
         timeout-minutes: 15
 
   security:
