@@ -4,9 +4,53 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2d4ebbafa960a5c1a54e42de99f560bb",
+    "content-hash": "ed92d8ce144bbe723424327509bc2388",
     "packages": [],
     "packages-dev": [
+        {
+            "name": "arokettu/random-polyfill",
+            "version": "1.99.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/arokettu/php-random-polyfill.git",
+                "reference": "c17671cc6ee4a466c2a5a2bc051672d4927dd230"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/arokettu/php-random-polyfill/zipball/c17671cc6ee4a466c2a5a2bc051672d4927dd230",
+                "reference": "c17671cc6ee4a466c2a5a2bc051672d4927dd230",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">= 8.2"
+            },
+            "type": "metapackage",
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Anton Smirnov",
+                    "email": "sandfox@sandfox.me",
+                    "homepage": "https://sandfox.me/",
+                    "role": "developer"
+                }
+            ],
+            "description": "Random Extension Polyfill for PHP",
+            "homepage": "https://sandfox.dev/php/random-polyfill.html",
+            "keywords": [
+                "polyfill",
+                "random"
+            ],
+            "support": {
+                "chat": "https://gitter.im/arokettu/community",
+                "docs": "https://php-random-polyfill.readthedocs.io/",
+                "issues": "https://gitlab.com/sandfox/php-random-polyfill/-/issues",
+                "source": "https://gitlab.com/sandfox/php-random-polyfill"
+            },
+            "time": "2022-09-01T22:23:28+00:00"
+        },
         {
             "name": "brick/math",
             "version": "0.12.3",
@@ -5157,6 +5201,63 @@
             "time": "2024-07-03T04:53:05+00:00"
         },
         {
+            "name": "stayallive/random-tokens",
+            "version": "v1.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/stayallive/random-tokens.git",
+                "reference": "b3d9348d26d595d9ec9b124010b33b73e7d1c74c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/stayallive/random-tokens/zipball/b3d9348d26d595d9ec9b124010b33b73e7d1c74c",
+                "reference": "b3d9348d26d595d9ec9b124010b33b73e7d1c74c",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1",
+                "tuupola/base62": "^2.1",
+                "valorin/random": "^0.5"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.50",
+                "phpunit/phpunit": "^10|^11"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Stayallive\\RandomTokens\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Alex Bouma",
+                    "email": "alex@bouma.me"
+                }
+            ],
+            "description": "Generate and handle prefixed random tokens.",
+            "homepage": "https://github.com/stayallive/random-tokens",
+            "keywords": [
+                "random",
+                "tokens"
+            ],
+            "support": {
+                "issues": "https://github.com/stayallive/random-tokens/issues",
+                "source": "https://github.com/stayallive/random-tokens/tree/v1.0.1"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/stayallive",
+                    "type": "github"
+                }
+            ],
+            "time": "2024-04-12T09:14:22+00:00"
+        },
+        {
             "name": "symfony/clock",
             "version": "v7.2.0",
             "source": {
@@ -7347,6 +7448,124 @@
                 }
             ],
             "time": "2025-01-07T12:55:42+00:00"
+        },
+        {
+            "name": "tuupola/base62",
+            "version": "2.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/tuupola/base62.git",
+                "reference": "7406145a9cf8c567cd35ad7358d1b24828cbcfdb"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/tuupola/base62/zipball/7406145a9cf8c567cd35ad7358d1b24828cbcfdb",
+                "reference": "7406145a9cf8c567cd35ad7358d1b24828cbcfdb",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.1|^8.0"
+            },
+            "require-dev": {
+                "overtrue/phplint": "^1.0",
+                "phpbench/phpbench": "^0.15.0",
+                "phpstan/phpstan": "^0.12.38",
+                "phpunit/phpunit": "^7.0|^8.0|^9.0",
+                "squizlabs/php_codesniffer": "^3.0"
+            },
+            "suggest": {
+                "ext-gmp": "GMP extension provides the fastest encoding and decoding."
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Tuupola\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Mika Tuupola",
+                    "email": "tuupola@appelsiini.net",
+                    "homepage": "https://appelsiini.net/",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Base62 encoder and decoder for arbitrary data",
+            "homepage": "https://github.com/tuupola/base62",
+            "keywords": [
+                "base62"
+            ],
+            "support": {
+                "issues": "https://github.com/tuupola/base62/issues",
+                "source": "https://github.com/tuupola/base62/tree/2.1.0"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/tuupola",
+                    "type": "github"
+                }
+            ],
+            "time": "2020-09-09T15:05:36+00:00"
+        },
+        {
+            "name": "valorin/random",
+            "version": "v0.5",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/valorin/random.git",
+                "reference": "cf930025a5b2fc5d456f540d5fe330a5690f531c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/valorin/random/zipball/cf930025a5b2fc5d456f540d5fe330a5690f531c",
+                "reference": "cf930025a5b2fc5d456f540d5fe330a5690f531c",
+                "shasum": ""
+            },
+            "require": {
+                "arokettu/random-polyfill": "^1.0",
+                "php": "^7.1 || ^8.0"
+            },
+            "require-dev": {
+                "illuminate/support": "^5.0 || ^10.0 || ^11.0",
+                "phpunit/phpunit": "^7.0 || ^9.6 || ^10.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Valorin\\Random\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Stephen Rees-Carter",
+                    "email": "stephen@rees-carter.net",
+                    "homepage": "https://stephenreescarter.net/"
+                }
+            ],
+            "description": "Random is a simple helper package designed to make it easy to generate a range of different cryptographically secure random values.",
+            "homepage": "https://github.com/valorin/random",
+            "keywords": [
+                "php"
+            ],
+            "support": {
+                "issues": "https://github.com/valorin/random/issues",
+                "source": "https://github.com/valorin/random"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/valorin",
+                    "type": "github"
+                }
+            ],
+            "time": "2024-03-12T21:05:51+00:00"
         },
         {
             "name": "vlucas/phpdotenv",

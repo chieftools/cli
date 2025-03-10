@@ -159,6 +159,16 @@ readonly class AuthService
         return $this->makeRequest('GET', $this->getOpenIDConfig('userinfo_endpoint'));
     }
 
+    public function getTokenInfo(): array
+    {
+        return $this->makeRequest('POST', $this->getOpenIDConfig('introspection_endpoint'), [
+            'json' => [
+                'client_id' => config('chief.client_id'),
+                'token'     => $this->getBearerToken(),
+            ],
+        ]);
+    }
+
     public function clearAuthData(): void
     {
         $this->config->reset();
