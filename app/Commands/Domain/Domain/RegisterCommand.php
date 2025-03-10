@@ -5,7 +5,7 @@ namespace App\Commands\Domain\Domain;
 use Exception;
 use RuntimeException;
 use App\Commands\Command;
-use App\Services\DomainChiefService;
+use App\API\Domain\Client;
 use function Laravel\Prompts\form;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\text;
@@ -20,7 +20,7 @@ class RegisterCommand extends Command
     protected $signature   = 'domain:register {domain? : Domain name to register or transfer}';
     protected $description = 'Register a new domain name';
 
-    public function handle(DomainChiefService $domainService): int
+    public function handle(Client $domainClient): int
     {
         try {
             $responses = form()
@@ -33,13 +33,13 @@ class RegisterCommand extends Command
                     name: 'domain',
                 )
                 // Step 2: Check domain availability and load TLD info
-                ->add(function ($responses) use ($domainService) {
+                ->add(function ($responses) use ($domainClient) {
                     $domain  = $responses['domain'];
                     $tld     = pathinfo($domain, PATHINFO_EXTENSION);
-                    $tldInfo = $domainService->getTldInfo($tld);
+                    $tldInfo = $domainClient->getTldInfo($tld);
 
                     $availabilityCheck = spin(
-                        callback: fn () => $domainService->checkDomainAvailability($domain),
+                        callback: fn () => $domainClient->checkDomainAvailability($domain),
                         message: 'Checking domain availability...',
                     );
 
@@ -135,7 +135,7 @@ class RegisterCommand extends Command
                     return false;
                 }, name: 'use_whois_privacy')
                 // Step 8: Contacts
-                ->add(function ($responses) use ($domainService) {
+                ->add(function ($responses) use ($domainClient) {
                     if (!$responses['proceed']) {
                         return null; // User cancelled
                     }
@@ -145,7 +145,7 @@ class RegisterCommand extends Command
 
                     if ((!$supportsWhoisPrivacy || !$useWhoisPrivacy)
                         && confirm('Would you like to specify contacts' . (!$supportsWhoisPrivacy ? ' (other than default)' : '') . '?', default: false)) {
-                        return $this->collectContacts($domainService);
+                        return $this->collectContacts($domainClient);
                     }
 
                     return null;
@@ -246,7 +246,7 @@ class RegisterCommand extends Command
             $isAvailable = $responses['domain_info']['isAvailable'];
             $action      = !$isAvailable ? 'transfer' : 'register';
 
-            $domainService->registerOrTransferDomain($params);
+            $domainClient->registerOrTransferDomain($params);
 
             $this->success("Successfully {$action}ed domain: {$domain}");
 
@@ -258,14 +258,14 @@ class RegisterCommand extends Command
         }
     }
 
-    private function collectContacts(DomainChiefService $domainService): array
+    private function collectContacts(Client $domainClient): array
     {
         $contacts     = [];
         $contactTypes = ['owner', 'admin', 'tech', 'billing'];
 
         // Fetch available contacts
         try {
-            $availableContacts = $domainService->listContacts(['per_page' => 100]);
+            $availableContacts = $domainClient->listContacts(['per_page' => 100]);
 
             // Format contacts for selection
             $contactOptions = [];

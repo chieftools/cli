@@ -3,7 +3,7 @@
 namespace App\Commands\Domain\Domain;
 
 use App\Commands\Command;
-use App\Services\DomainChiefService;
+use App\API\Domain\Client;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\text;
 
@@ -12,12 +12,12 @@ class AvailabilityCommand extends Command
     protected $signature   = 'domain:availability {domain?}';
     protected $description = 'Check the availability of a domain';
 
-    public function handle(DomainChiefService $domainService): int
+    public function handle(Client $domainClient): int
     {
         $domain = $this->argument('domain') ?? text('What domain would you like to check?');
 
         $isAvailable = spin(
-            callback: fn () => $domainService->checkDomainAvailability($domain)['availability'] === 'free',
+            callback: fn () => $domainClient->checkDomainAvailability($domain)['availability'] === 'free',
             message: 'Checking domain availability...',
         );
 

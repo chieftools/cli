@@ -5,7 +5,6 @@ namespace App\Services;
 use Exception;
 use RuntimeException;
 use Illuminate\Support\Arr;
-use GuzzleHttp\Exception\GuzzleException;
 
 readonly class AuthService
 {
@@ -75,7 +74,9 @@ readonly class AuthService
     public function completeAuthentication(array $tokenData): array
     {
         $user = $this->makeRequest('GET', $this->getOpenIDConfig('userinfo_endpoint'), [
-            'headers' => ['Authorization' => 'Bearer ' . $tokenData['access_token']],
+            'headers' => [
+                'Authorization' => "Bearer {$tokenData['access_token']}",
+            ],
         ]);
 
         $this->updateTokens(
@@ -115,19 +116,12 @@ readonly class AuthService
             throw new RuntimeException('Invalid token response');
         }
 
-        // Get user info to ensure we have valid team data
-        $userInfo = $this->makeRequest('GET', $this->getOpenIDConfig('userinfo_endpoint'), [
-            'headers' => ['Authorization' => 'Bearer ' . $response['access_token']],
-        ]);
-
-        if (empty($userInfo['teams'])) {
-            throw new RuntimeException('No teams available in user info');
-        }
-
         $this->updateTokens(
             $response['access_token'],
             $response['refresh_token'] ?? null,
         );
+
+        $userInfo = $this->getUserInfo();
 
         $team = Arr::first($userInfo['teams']);
 
@@ -156,7 +150,9 @@ readonly class AuthService
 
     public function getUserInfo(): array
     {
-        return $this->makeRequest('GET', $this->getOpenIDConfig('userinfo_endpoint'));
+        return $this->makeRequest('GET', $this->getOpenIDConfig('userinfo_endpoint'), [
+            'auth' => 'bearer',
+        ]);
     }
 
     public function getTokenInfo(): array
@@ -194,6 +190,14 @@ readonly class AuthService
         return $this->config->has('team_slug');
     }
 
+    public function clearTokens(): void
+    {
+        $this->config->setMultiple([
+            'access_token'  => null,
+            'refresh_token' => null,
+        ]);
+    }
+
     public function updateTokens(string $accessToken, ?string $refreshToken): void
     {
         $this->config->setMultiple([
@@ -212,31 +216,8 @@ readonly class AuthService
 
     private function makeRequest(string $method, string $url, array $options = []): array
     {
-        $client = http(headers: $this->getHeaders());
+        $response = http()->request($method, $url, $options);
 
-        try {
-            $response = $client->request($method, $url, $options);
-
-            return json_decode($response->getBody(), true, 512, JSON_THROW_ON_ERROR);
-        } catch (GuzzleException $e) {
-            throw new RuntimeException('Request failed: ' . $e->getMessage());
-        }
-    }
-
-    private function getHeaders(): array
-    {
-        $headers = [
-            'Accept' => 'application/json',
-        ];
-
-        if ($this->isAuthenticated()) {
-            $headers['Authorization'] = "Bearer {$this->getBearerToken()}";
-        }
-
-        if ($this->hasTeamSlug()) {
-            $headers['X-Chief-Team'] = $this->getTeamSlug();
-        }
-
-        return $headers;
+        return json_decode($response->getBody(), true, 512, JSON_THROW_ON_ERROR);
     }
 }

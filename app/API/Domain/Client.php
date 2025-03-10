@@ -1,49 +1,28 @@
 <?php
 
-namespace App\Services;
+namespace App\API\Domain;
 
 use RuntimeException;
-use GuzzleHttp\Client;
-use GuzzleHttp\Exception\ClientException;
+use App\Services\AuthService;
+use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\ConnectException;
 
-class DomainChiefService
+class Client
 {
     private const VALID_EXPAND_VALUES = ['tld', 'contacts'];
 
-    private Client $client;
+    private HttpClient $client;
 
     public function __construct(
         private readonly AuthService $auth,
     ) {
-        $this->initializeClient();
-    }
-
-    private function initializeClient(): void
-    {
-        $this->client = new Client([
-            'base_uri' => rtrim(config('chief.endpoints.domain'), '/') . '/api/v1/',
-            'timeout'  => 30,
-            'headers'  => $this->getHeaders(),
-        ]);
-    }
-
-    private function getHeaders(): array
-    {
-        $headers = [
-            'Accept' => 'application/json',
-        ];
-
-        if ($this->auth->isAuthenticated()) {
-            $headers['Authorization'] = "Bearer {$this->auth->getBearerToken()}";
-        }
-
-        if ($this->auth->getTeamSlug()) {
-            $headers['X-Chief-Team'] = $this->auth->getTeamSlug();
-        }
-
-        return $headers;
+        $this->client = http(
+            baseUri: rtrim(config('chief.endpoints.domain'), '/') . '/api/v1/',
+            options: [
+                'auth' => 'bearer',
+            ],
+        );
     }
 
     private function executeRequest(string $method, string $endpoint, array $options = [], ?callable $retryCallback = null): array
@@ -55,21 +34,7 @@ class DomainChiefService
         try {
             $response = $this->client->$method($endpoint, $options);
 
-            return json_decode($response->getBody()->getContents(), true);
-        } catch (ClientException $e) {
-            if ($e->getResponse()->getStatusCode() === 401 && $this->auth->refreshAccessToken()) {
-                $this->initializeClient();
-
-                if ($retryCallback) {
-                    return $retryCallback();
-                }
-            }
-
-            throw new RuntimeException(
-                "Failed to {$method} {$endpoint}: {$e->getMessage()}",
-                $e->getCode(),
-                $e,
-            );
+            return json_decode($response->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR);
         } catch (ConnectException $e) {
             throw new RuntimeException(
                 'Failed to connect. Please check your internet connection and try again.',

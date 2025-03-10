@@ -4,7 +4,7 @@ namespace App\Commands\Domain\Domain;
 
 use Carbon\Carbon;
 use App\Commands\Command;
-use App\Services\DomainChiefService;
+use App\API\Domain\Client;
 
 class ListCommand extends Command
 {
@@ -19,7 +19,7 @@ class ListCommand extends Command
         {--detailed : Show detailed domain information}';
     protected $description = 'List all domains';
 
-    public function handle(DomainChiefService $domains): int
+    public function handle(Client $domainClient): int
     {
         try {
             $options = [
@@ -37,7 +37,7 @@ class ListCommand extends Command
                 $options['expand'] = $expandOptions;
             }
 
-            $response = $domains->listDomains($options);
+            $response = $domainClient->listDomains($options);
 
             if (empty($response['data'])) {
                 $this->info('No domains found.');
