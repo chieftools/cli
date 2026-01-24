@@ -74,13 +74,13 @@ class RegisterCommand extends Command
                         $this->warn("Domain {$domain} is already registered.");
 
                         return pause("Press ENTER to transfer ...(Transfer price: €{$transferPrice})");
-                    } else {
-                        $this->info("Domain {$domain} is available for registration!");
-                        $this->info("Registration price: €{$registrationPrice}");
-                        $this->info("Renewal price: €{$renewalPrice}");
-
-                        return true; // Proceed with registration
                     }
+
+                    $this->info("Domain {$domain} is available for registration!");
+                    $this->info("Registration price: €{$registrationPrice}");
+                    $this->info("Renewal price: €{$renewalPrice}");
+
+                    return true; // Proceed with registration
                 }, name: 'proceed')
                 // Step 4: Get auth code for transfer
                 ->add(function ($responses) {
