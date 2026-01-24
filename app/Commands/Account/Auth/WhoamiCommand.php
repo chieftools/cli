@@ -34,13 +34,26 @@ class WhoamiCommand extends Command
             $team = Arr::first($userInfo['teams']);
 
             $this->boldLine('chief.app');
+            $this->line('  <fg=green>✓</> Authenticated with <options=bold>chief.app</>');
+            $this->newLine();
+
+            $this->boldLine('Account information:');
             $this->line(sprintf(
-                '  <fg=green>✓</> Logged in to chief.app account <options=bold>%s</> (<options=bold>%s</>)',
+                '  User: <options=bold>%s</> (<options=bold>%s</>)',
                 $userInfo['name'],
                 $userInfo['email'],
             ));
             $this->line(sprintf(
-                '  Token type: %s',
+                '  Team: <options=bold>%s</> (<options=bold>%s</>)',
+                $team['name'],
+                $team['slug'],
+            ));
+
+            $this->newLine();
+
+            $this->boldLine('Token information:');
+            $this->line(sprintf(
+                '  Type: %s',
                 match ($parsedToken->prefix) {
                     'cto'   => 'OAuth',
                     'ctp'   => 'Personal access token',
@@ -53,7 +66,7 @@ class WhoamiCommand extends Command
                 str_repeat('*', strlen($parsedToken->random . $parsedToken->checksum)),
             ));
             $this->line(sprintf(
-                '  Token scopes: <options=bold>%s</>',
+                '  Scopes: <options=bold>%s</>',
                 implode(', ', explode(' ', $tokenInfo['scope'])),
             ));
 
