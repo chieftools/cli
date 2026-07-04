@@ -6,6 +6,7 @@ use Exception;
 use RuntimeException;
 use App\Commands\Command;
 use App\API\Domain\Client;
+use App\Services\AuthService;
 use function Laravel\Prompts\form;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\text;
@@ -20,9 +21,13 @@ class RegisterCommand extends Command
     protected $signature   = 'domain:register {domain? : Domain name to register or transfer}';
     protected $description = 'Register a new domain name';
 
-    public function handle(Client $domainClient): int
+    public function handle(Client $domainClient, AuthService $auth): int
     {
         try {
+            if (!$this->ensureTokenHasScopes($auth, 'chief.required_scopes.domain.register')) {
+                return self::FAILURE;
+            }
+
             $responses = form()
                 // Step 1: Get domain name
                 ->text(

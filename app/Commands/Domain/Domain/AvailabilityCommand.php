@@ -4,6 +4,7 @@ namespace App\Commands\Domain\Domain;
 
 use App\Commands\Command;
 use App\API\Domain\Client;
+use App\Services\AuthService;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\text;
 
@@ -12,8 +13,12 @@ class AvailabilityCommand extends Command
     protected $signature   = 'domain:availability {domain?}';
     protected $description = 'Check the availability of a domain';
 
-    public function handle(Client $domainClient): int
+    public function handle(Client $domainClient, AuthService $auth): int
     {
+        if (!$this->ensureTokenHasScopes($auth, 'chief.required_scopes.domain.availability')) {
+            return self::FAILURE;
+        }
+
         $domain = $this->argument('domain') ?? text('What domain would you like to check?');
 
         $isAvailable = spin(

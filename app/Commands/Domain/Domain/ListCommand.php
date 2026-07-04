@@ -5,6 +5,7 @@ namespace App\Commands\Domain\Domain;
 use Carbon\Carbon;
 use App\Commands\Command;
 use App\API\Domain\Client;
+use App\Services\AuthService;
 
 class ListCommand extends Command
 {
@@ -19,9 +20,13 @@ class ListCommand extends Command
         {--detailed : Show detailed domain information}';
     protected $description = 'List all domains';
 
-    public function handle(Client $domainClient): int
+    public function handle(Client $domainClient, AuthService $auth): int
     {
         try {
+            if (!$this->ensureTokenHasScopes($auth, 'chief.required_scopes.domain.list')) {
+                return self::FAILURE;
+            }
+
             $options = [
                 'page'     => (int)$this->option('page'),
                 'per_page' => (int)$this->option('per-page'),

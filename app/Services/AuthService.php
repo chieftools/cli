@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Exception;
+use Throwable;
 use RuntimeException;
 use Illuminate\Support\Arr;
 
@@ -165,6 +166,29 @@ readonly class AuthService
         ]);
     }
 
+    public function getMissingScopes(array $requiredScopes, bool $refreshIfMissing = true): array
+    {
+        $requiredScopes = $this->normalizeScopes($requiredScopes);
+
+        if (empty($requiredScopes)) {
+            return [];
+        }
+
+        $missingScopes = $this->resolveMissingScopes($requiredScopes, $this->getGrantedScopes());
+
+        if (!empty($missingScopes) && $refreshIfMissing) {
+            try {
+                if ($this->refreshAccessToken()) {
+                    $missingScopes = $this->resolveMissingScopes($requiredScopes, $this->getGrantedScopes());
+                }
+            } catch (Throwable) {
+                // Keep the original missing scope list so the caller can ask the user to reauthenticate.
+            }
+        }
+
+        return $missingScopes;
+    }
+
     public function clearAuthData(): void
     {
         $this->config->reset();
@@ -212,6 +236,116 @@ readonly class AuthService
             'team_slug' => $teamSlug,
             'team_name' => $teamName,
         ]);
+    }
+
+    private function getGrantedScopes(): array
+    {
+        $tokenInfo = $this->getTokenInfo();
+
+        if (isset($tokenInfo['active']) && !$tokenInfo['active']) {
+            return [];
+        }
+
+        return $this->parseScopes($tokenInfo['scope'] ?? '');
+    }
+
+    private function resolveMissingScopes(array $requiredScopes, array $grantedScopes): array
+    {
+        return array_values(array_filter(
+            $requiredScopes,
+            fn (string $requiredScope) => !$this->hasScope($requiredScope, $grantedScopes),
+        ));
+    }
+
+    private function hasScope(string $requiredScope, array $grantedScopes): bool
+    {
+        foreach ($grantedScopes as $grantedScope) {
+            if ($grantedScope === $requiredScope) {
+                return true;
+            }
+
+            if ($this->isParentScope($grantedScope, $requiredScope)) {
+                return true;
+            }
+
+            if ($this->isCrossCuttingScope($grantedScope, $requiredScope)) {
+                return true;
+            }
+
+            if ($this->isWriteScopeGrantingReadScope($grantedScope, $requiredScope)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isParentScope(string $grantedScope, string $requiredScope): bool
+    {
+        return str_starts_with($requiredScope, "{$grantedScope}:");
+    }
+
+    private function isCrossCuttingScope(string $grantedScope, string $requiredScope): bool
+    {
+        $grantedParts  = explode(':', $grantedScope);
+        $requiredParts = explode(':', $requiredScope);
+
+        if (count($grantedParts) !== 2 || count($requiredParts) < 3) {
+            return false;
+        }
+
+        [$grantedApp, $grantedAction]     = $grantedParts;
+        [$requiredApp, , $requiredAction] = $requiredParts;
+
+        if ($grantedApp !== $requiredApp) {
+            return false;
+        }
+
+        return $grantedAction === $requiredAction
+            || ($grantedAction === 'write' && $requiredAction === 'read');
+    }
+
+    private function isWriteScopeGrantingReadScope(string $grantedScope, string $requiredScope): bool
+    {
+        if (!str_ends_with($grantedScope, ':write')) {
+            return false;
+        }
+
+        $readScope = substr($grantedScope, 0, -strlen(':write')) . ':read';
+
+        return $readScope === $requiredScope || $this->isParentScope($readScope, $requiredScope);
+    }
+
+    private function parseScopes(mixed $scopes): array
+    {
+        if (is_string($scopes)) {
+            return $this->normalizeScopes(preg_split('/\s+/', trim($scopes)) ?: []);
+        }
+
+        if (is_array($scopes)) {
+            return $this->normalizeScopes($scopes);
+        }
+
+        return [];
+    }
+
+    private function normalizeScopes(array $scopes): array
+    {
+        $normalizedScopes = [];
+
+        foreach ($scopes as $scope) {
+            if (!is_string($scope)) {
+                continue;
+            }
+
+            $scope = trim($scope);
+
+            if ($scope !== '') {
+                $normalizedScopes[] = $scope;
+            }
+        }
+
+        return array_values(array_unique($normalizedScopes));
     }
 
     private function makeRequest(string $method, string $url, array $options = []): array
