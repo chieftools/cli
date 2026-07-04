@@ -7,6 +7,7 @@ use RuntimeException;
 use App\Commands\Command;
 use App\API\Domain\Client;
 use App\Services\AuthService;
+
 use function Laravel\Prompts\form;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\text;

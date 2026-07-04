@@ -1,8 +1,6 @@
 <?php
 
-/**
- * Get the user agent for the application.
- */
+/** Get the user agent for the application. */
 function user_agent(): string
 {
     return sprintf(
@@ -11,9 +9,7 @@ function user_agent(): string
     );
 }
 
-/**
- * Get a HTTP client to use with sane timeouts and defaults.
- */
+/** Get a HTTP client to use with sane timeouts and defaults. */
 function http(?string $baseUri = null, array $headers = [], int $timeout = 10, array $options = [], ?Closure $stackCallback = null): GuzzleHttp\Client
 {
     $stack = GuzzleHttp\HandlerStack::create();

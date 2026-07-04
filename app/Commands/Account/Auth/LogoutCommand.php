@@ -5,6 +5,7 @@ namespace App\Commands\Account\Auth;
 use RuntimeException;
 use App\Commands\Command;
 use App\Services\AuthService;
+
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\spin;
 

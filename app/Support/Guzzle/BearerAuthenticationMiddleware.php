@@ -7,6 +7,7 @@ use Exception;
 use App\Services\AuthService;
 use Psr\Http\Message\RequestInterface;
 use GuzzleHttp\Exception\RequestException;
+
 use function Laravel\Prompts\error;
 
 readonly class BearerAuthenticationMiddleware

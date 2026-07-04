@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup PHP cache
         uses: shivammathur/cache-extensions@v1
@@ -27,7 +27,7 @@ jobs:
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
           key: php82-cache
       - name: Cache PHP extensions
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ steps.php-ext-cache.outputs.dir }}
           key: ${{ steps.php-ext-cache.outputs.key }}
@@ -39,7 +39,7 @@ jobs:
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
           coverage: none
       - name: Cache Composer dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: composer-cache
         with:
           path: vendor
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup PHP cache
         uses: shivammathur/cache-extensions@v1
@@ -69,7 +69,7 @@ jobs:
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
           key: php82-cache
       - name: Cache PHP extensions
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ steps.php-ext-cache.outputs.dir }}
           key: ${{ steps.php-ext-cache.outputs.key }}
@@ -81,7 +81,7 @@ jobs:
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
           coverage: none
       - name: Cache Composer dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: composer-cache
         with:
           path: vendor
@@ -89,7 +89,7 @@ jobs:
           restore-keys: ${{ runner.os }}-composer-
 
       - name: Cache php-cs-fixer cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: php-cs-fixer-cache
         with:
           path: .php-cs-fixer.cache
@@ -109,7 +109,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup PHP cache
         uses: shivammathur/cache-extensions@v1
@@ -119,7 +119,7 @@ jobs:
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
           key: php82-cache
       - name: Cache PHP extensions
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ steps.php-ext-cache.outputs.dir }}
           key: ${{ steps.php-ext-cache.outputs.key }}
@@ -131,7 +131,7 @@ jobs:
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
           coverage: none
       - name: Cache Composer dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: composer-cache
         with:
           path: vendor
@@ -139,7 +139,7 @@ jobs:
           restore-keys: ${{ runner.os }}-composer-
 
       - name: Cache PHPStan cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: phpstan-cache
         with:
           path: storage/tmp/phpstan
@@ -158,7 +158,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check for security issues in dependencies
         uses: symfonycorp/security-checker-action@v5
@@ -172,7 +172,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -185,7 +185,7 @@ jobs:
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
           key: php82-cache
       - name: Cache PHP extensions
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ steps.php-ext-cache.outputs.dir }}
           key: ${{ steps.php-ext-cache.outputs.key }}
@@ -197,7 +197,7 @@ jobs:
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
           coverage: none
       - name: Cache Composer dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: composer-cache
         with:
           path: vendor

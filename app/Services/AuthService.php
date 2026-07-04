@@ -144,7 +144,7 @@ readonly class AuthService
             'json' => [
                 'client_id' => config('chief.client_id'),
                 // If we are revoking the refresh token we don't need to also revoke the access token since they are connected
-                'token'     => $this->config->get('refresh_token') ?? $this->config->get('access_token'),
+                'token' => $this->config->get('refresh_token') ?? $this->config->get('access_token'),
             ],
         ]);
     }
@@ -294,7 +294,7 @@ readonly class AuthService
             return false;
         }
 
-        [$grantedApp, $grantedAction]     = $grantedParts;
+        [$grantedApp, $grantedAction] = $grantedParts;
         [$requiredApp, , $requiredAction] = $requiredParts;
 
         if ($grantedApp !== $requiredApp) {

@@ -7,6 +7,7 @@ use App\Commands\Command;
 use Illuminate\Support\Arr;
 use App\Services\AuthService;
 use Stayallive\RandomTokens\RandomToken;
+
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\error;
 use function Laravel\Prompts\warning;
