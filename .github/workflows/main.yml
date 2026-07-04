@@ -242,5 +242,6 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           generateReleaseNotes: true
+          immutableCreate: true
           artifacts: "builds/chief.phar"
           tag: "${{ steps.previous_tag.outputs.next_version }}"
